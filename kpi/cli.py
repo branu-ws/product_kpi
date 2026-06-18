@@ -61,14 +61,16 @@ def update_duckdb() -> None:
     keiei_loyalty_df = company_loyalty.build_keiei(conn)
     conn.register("keiei_company_loyalty", keiei_loyalty_df)
 
-    print("collections/*.sql を BigQuery 用に集計中...")
+    print("collections/**/*.sql を BigQuery 用に集計中...")
     views: dict[str, Any] = {}
-    for sql_file in sorted(_COLLECTIONS_DIR.glob("*.sql")):
+    for sql_file in sorted(_COLLECTIONS_DIR.rglob("*.sql")):
+        rel = sql_file.relative_to(_COLLECTIONS_DIR)
+        table_name = "_".join(rel.with_suffix("").parts)
         try:
-            views[sql_file.stem] = conn.sql(sql_file.read_text()).df()
-            print(f"  {sql_file.name} → OK")
+            views[table_name] = conn.sql(sql_file.read_text()).df()
+            print(f"  {rel} → {table_name}")
         except Exception as e:
-            print(f"  警告: {sql_file.name} スキップ ({e})", file=sys.stderr)
+            print(f"  警告: {rel} スキップ ({e})", file=sys.stderr)
 
     conn.close()
 
@@ -117,13 +119,18 @@ def export_csv() -> None:
 
     sql_files = [Path(a) for a in args]
     conn = db.load()
-    _OUTPUT_DIR.mkdir(parents=True, exist_ok=True)
 
     for sql_file in sql_files:
+        rel = (
+            sql_file.relative_to(_COLLECTIONS_DIR)
+            if sql_file.is_relative_to(_COLLECTIONS_DIR)
+            else Path(sql_file.name)
+        )
+        output_path = _OUTPUT_DIR / rel.with_suffix(".csv")
+        output_path.parent.mkdir(parents=True, exist_ok=True)
         sql = sql_file.read_text(encoding="utf-8")
         result = conn.sql(sql).df()
-        output_path = _OUTPUT_DIR / (sql_file.stem + ".csv")
-        print(f"\n=== {sql_file.name} ===")
+        print(f"\n=== {rel} ===")
         print(result.to_string())
         result.to_csv(output_path, index=False, encoding="utf-8-sig")
         print(f"-> {output_path} に保存しました")
