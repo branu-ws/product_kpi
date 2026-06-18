@@ -51,11 +51,10 @@ notion:
       sql: "collections/notion/cross_product/cross_product_matrix_time_series.sql"
       db_id: "3829cbb2313080df95e2c8b0756f01f4"
       ds_id: "3829cbb2-3130-80f1-a11f-000be4b6b8b7"
-    # 追加する場合はここに追記:
-    # - name: "loyalty_trend"
-    #   sql: "collections/output3_loyalty_trend.sql"
-    #   db_id: ""
-    #   ds_id: ""
+    - name: "work_single_product_usage"
+      sql: "collections/notion/work/single_product_usage_timeseries.sql"
+      db_id: ""   # TODO: Notion DB の ID を入力してください
+      ds_id: ""   # TODO: Notion DS の ID を入力してください
 
 gcp:
   project_id: product-department-496703

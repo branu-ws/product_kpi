@@ -23,20 +23,6 @@ _ROOT = Path(__file__).parent.parent
 _CONFIG_PATH = _ROOT / "config.yml"
 _MONTH_RE = re.compile(r"^\d{4}-\d{2}$")
 
-_NUMERIC_COLS = [
-    "ファン_good",
-    "ファン_normal",
-    "ファン_bad",
-    "自主利用_good",
-    "自主利用_normal",
-    "自主利用_bad",
-    "オンボ中_good",
-    "オンボ中_normal",
-    "オンボ中_bad",
-    "放置_good",
-    "放置_normal",
-    "放置_bad",
-]
 
 
 def sync_all(conn: duckdb.DuckDBPyConnection) -> None:
@@ -70,7 +56,8 @@ def _sync_output(
 ) -> None:
     df = df.sort_values("usage_month").tail(months_to_show)
     months: list[str] = [str(m) for m in df["usage_month"].tolist()]
-    pivot = df.set_index("usage_month")[_NUMERIC_COLS].T
+    metric_cols = [c for c in df.columns if c != "usage_month"]
+    pivot = df.set_index("usage_month")[metric_cols].T
 
     log.info("  既存ページをアーカイブ中...")
     _archive_all(notion, ds_id)
@@ -78,8 +65,8 @@ def _sync_output(
     log.info("  月カラムをスキーマに同期中...")
     _sync_month_columns(notion, ds_id, months)
 
-    log.info("  %d 行を書き込み中...", len(_NUMERIC_COLS))
-    for metric in _NUMERIC_COLS:
+    log.info("  %d 行を書き込み中...", len(metric_cols))
+    for metric in metric_cols:
         row = pivot.loc[metric]
         properties: dict[str, object] = {
             "指標": {"title": [{"text": {"content": metric}}]},
