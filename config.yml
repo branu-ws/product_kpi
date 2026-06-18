@@ -56,3 +56,7 @@ notion:
     #   sql: "collections/output3_loyalty_trend.sql"
     #   db_id: ""
     #   ds_id: ""
+
+gcp:
+  project_id: product-department-496703
+  dataset: kpi

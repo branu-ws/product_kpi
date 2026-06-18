@@ -29,6 +29,11 @@ class LoyaltyParams(BaseModel, frozen=True):
     rihan_months: int
 
 
+class GcpSettings(BaseModel, frozen=True):
+    project_id: str
+    dataset: str = "kpi"
+
+
 class _KpiSettings(BaseModel, frozen=True):
     feature_thresholds: dict[str, FeatureThreshold]
     keiei_feature_thresholds: dict[str, FeatureThreshold]
@@ -40,6 +45,11 @@ class _KpiSettings(BaseModel, frozen=True):
 def _load() -> _KpiSettings:
     raw = yaml.safe_load(_CONFIG_PATH.read_text())
     return _KpiSettings.model_validate(raw["kpi"])
+
+
+def load_gcp() -> GcpSettings:
+    raw = yaml.safe_load(_CONFIG_PATH.read_text())
+    return GcpSettings.model_validate(raw["gcp"])
 
 
 _settings = _load()

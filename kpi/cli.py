@@ -1,6 +1,7 @@
 """CLI エントリーポイント。pyproject.toml の [project.scripts] から呼ばれる。"""
 
 import logging
+import os
 import sys
 from collections import defaultdict
 from pathlib import Path
@@ -24,6 +25,9 @@ from kpi import (
     users,
     work_process_id_generator,
     work_user_history,
+)
+from kpi import (
+    config as kpi_config,
 )
 
 logging.basicConfig(level=logging.INFO, format="%(message)s")
@@ -142,6 +146,15 @@ def update_duckdb() -> None:
         db.save_views(dict(views))
 
     log.info("完了")
+
+
+def bq_update() -> None:
+    """kpi-update + BigQuery 書き込み。GCP 設定は config.yml から読む。"""
+    gcp = kpi_config.load_gcp()
+    os.environ["USE_BIGQUERY"] = "1"
+    os.environ.setdefault("GCP_PROJECT_ID", gcp.project_id)
+    os.environ.setdefault("BQ_DATASET", gcp.dataset)
+    update_duckdb()
 
 
 def sync_notion() -> None:
