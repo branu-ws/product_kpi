@@ -2,13 +2,14 @@
 
 - save()       : 正規化 DataFrame を DuckDB に保存する (BigQuery には上げない)。
 - save_views() : collections/*.sql の集計結果を BigQuery のみに保存する。
+                 {dataset: {table: df}} の形式でデータセットごとに分けて保存。
 - load()       : DuckDB ファイルから接続を返す (Redash アクセス不要)。
 - is_cached()  : キャッシュ済みか確認する。
 
 環境変数:
   USE_BIGQUERY   : 非空文字列で BigQuery 書き込みを有効化 (Cloud Run で設定)
   GCP_PROJECT_ID : BigQuery プロジェクト ID
-  BQ_DATASET     : BigQuery データセット名 (デフォルト: kpi)
+  BQ_DATASET     : トップレベル SQL のデフォルトデータセット名 (デフォルト: kpi)
 """
 
 import os
@@ -29,6 +30,19 @@ def save(**tables: pd.DataFrame) -> None:
     _save_duckdb(**tables)
 
 
+def save_views(views: dict[str, dict[str, pd.DataFrame]]) -> None:
+    """集計済み DataFrame を BigQuery のみに保存する (USE_BIGQUERY=1 のときだけ有効)。
+
+    views = {dataset_name: {table_name: df, ...}, ...}
+    collections/ のサブディレクトリがそのまま BigQuery データセットになる。
+    データセットが存在しない場合は自動作成する。
+    """
+    if not os.getenv("USE_BIGQUERY"):
+        return
+    for dataset, tables in views.items():
+        _save_bigquery(dataset, **tables)
+
+
 def _save_duckdb(**tables: pd.DataFrame) -> None:
     conn = duckdb.connect(str(DB_PATH))
     for name, frame in tables.items():
@@ -40,12 +54,21 @@ def _save_duckdb(**tables: pd.DataFrame) -> None:
     print(f"  キャッシュ保存: {DB_PATH}")
 
 
-def _save_bigquery(**tables: pd.DataFrame) -> None:
+def _save_bigquery(dataset: str, **tables: pd.DataFrame) -> None:
+    from google.api_core.exceptions import Conflict
     from google.cloud import bigquery
 
     project = os.environ["GCP_PROJECT_ID"]
-    dataset = os.getenv("BQ_DATASET", "kpi")
-    client = bigquery.Client(project=project)
+    client: bigquery.Client = bigquery.Client(project=project)
+
+    ds = bigquery.Dataset(f"{project}.{dataset}")
+    ds.location = "asia-northeast1"
+    try:
+        client.create_dataset(ds)
+        print(f"  BigQuery データセット作成: {dataset}")
+    except Conflict:
+        pass
+
     job_config = bigquery.LoadJobConfig(
         write_disposition=bigquery.WriteDisposition.WRITE_TRUNCATE,
         autodetect=True,
@@ -55,16 +78,6 @@ def _save_bigquery(**tables: pd.DataFrame) -> None:
         job = client.load_table_from_dataframe(frame, table_ref, job_config=job_config)
         job.result()
         print(f"  BigQuery 保存: {table_ref} ({len(frame):,} rows)")
-
-
-def save_views(**tables: pd.DataFrame) -> None:
-    """集計済み DataFrame を BigQuery のみに保存する (USE_BIGQUERY=1 のときだけ有効)。
-
-    正規化テーブルと異なり DuckDB には保存しない。
-    collections/*.sql の実行結果をそのまま渡す用途を想定。
-    """
-    if os.getenv("USE_BIGQUERY"):
-        _save_bigquery(**tables)
 
 
 def load() -> duckdb.DuckDBPyConnection:

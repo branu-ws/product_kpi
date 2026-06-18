@@ -1,6 +1,8 @@
 """CLI エントリーポイント。pyproject.toml の [project.scripts] から呼ばれる。"""
 
+import os
 import sys
+from collections import defaultdict
 from pathlib import Path
 from typing import Any
 
@@ -62,13 +64,16 @@ def update_duckdb() -> None:
     conn.register("keiei_company_loyalty", keiei_loyalty_df)
 
     print("collections/**/*.sql を BigQuery 用に集計中...")
-    views: dict[str, Any] = {}
+    default_dataset = os.getenv("BQ_DATASET", "kpi")
+    views: dict[str, dict[str, Any]] = defaultdict(dict)
     for sql_file in sorted(_COLLECTIONS_DIR.rglob("*.sql")):
         rel = sql_file.relative_to(_COLLECTIONS_DIR)
-        table_name = "_".join(rel.with_suffix("").parts)
+        parts = rel.with_suffix("").parts
+        dataset = parts[0] if len(parts) > 1 else default_dataset
+        table_name = "_".join(parts[1:] if len(parts) > 1 else parts)
         try:
-            views[table_name] = conn.sql(sql_file.read_text()).df()
-            print(f"  {rel} → {table_name}")
+            views[dataset][table_name] = conn.sql(sql_file.read_text()).df()
+            print(f"  {rel} → {dataset}.{table_name}")
         except Exception as e:
             print(f"  警告: {rel} スキップ ({e})", file=sys.stderr)
 
@@ -91,7 +96,7 @@ def update_duckdb() -> None:
 
     if views:
         print("BigQuery に集計結果を保存中...")
-        db.save_views(**views)
+        db.save_views(dict(views))
 
     print("完了")
 
