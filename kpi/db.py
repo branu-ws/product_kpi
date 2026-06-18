@@ -1,8 +1,9 @@
 """DuckDB / BigQuery ユーティリティ。
 
-- save()    : DataFrame を DuckDB に永続化する。USE_BIGQUERY=1 なら BigQuery にも書く。
-- load()    : DuckDB ファイルから接続を返す(Redash アクセス不要)。
-- is_cached(): キャッシュ済みか確認する。
+- save()       : 正規化 DataFrame を DuckDB に保存する (BigQuery には上げない)。
+- save_views() : collections/*.sql の集計結果を BigQuery のみに保存する。
+- load()       : DuckDB ファイルから接続を返す (Redash アクセス不要)。
+- is_cached()  : キャッシュ済みか確認する。
 
 環境変数:
   USE_BIGQUERY   : 非空文字列で BigQuery 書き込みを有効化 (Cloud Run で設定)
@@ -24,10 +25,8 @@ def is_cached() -> bool:
 
 
 def save(**tables: pd.DataFrame) -> None:
-    """DataFrame を DuckDB に保存し、USE_BIGQUERY=1 なら BigQuery にも書く。"""
+    """正規化 DataFrame を DuckDB に保存する。BigQuery には上げない。"""
     _save_duckdb(**tables)
-    if os.getenv("USE_BIGQUERY"):
-        _save_bigquery(**tables)
 
 
 def _save_duckdb(**tables: pd.DataFrame) -> None:
@@ -56,6 +55,16 @@ def _save_bigquery(**tables: pd.DataFrame) -> None:
         job = client.load_table_from_dataframe(frame, table_ref, job_config=job_config)
         job.result()
         print(f"  BigQuery 保存: {table_ref} ({len(frame):,} rows)")
+
+
+def save_views(**tables: pd.DataFrame) -> None:
+    """集計済み DataFrame を BigQuery のみに保存する (USE_BIGQUERY=1 のときだけ有効)。
+
+    正規化テーブルと異なり DuckDB には保存しない。
+    collections/*.sql の実行結果をそのまま渡す用途を想定。
+    """
+    if os.getenv("USE_BIGQUERY"):
+        _save_bigquery(**tables)
 
 
 def load() -> duckdb.DuckDBPyConnection:

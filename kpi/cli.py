@@ -2,6 +2,7 @@
 
 import sys
 from pathlib import Path
+from typing import Any
 
 import duckdb
 import httpx
@@ -22,10 +23,13 @@ from kpi import (
 )
 
 _OUTPUT_DIR = Path(__file__).parent.parent / "output" / "csv"
+_COLLECTIONS_DIR = Path(__file__).parent.parent / "collections"
 
 
 def update_duckdb() -> None:
-    """Redash からデータを取得して DuckDB キャッシュと BigQuery を更新する。"""
+    """Redash からデータを取得して DuckDB キャッシュを更新し、
+    collections/*.sql の集計結果を BigQuery に保存する。
+    """
     print("Redash からデータを取得中...")
     with httpx.Client() as client:
         history_df = work_user_history.fetch(client)
@@ -50,10 +54,21 @@ def update_duckdb() -> None:
     health_df = feature_health.build(conn)
     conn.register("feature_health", health_df)
     loyalty_df = company_loyalty.build(conn)
+    conn.register("company_loyalty", loyalty_df)
 
     keiei_health_df = feature_health.build_keiei(conn)
     conn.register("keiei_feature_health", keiei_health_df)
     keiei_loyalty_df = company_loyalty.build_keiei(conn)
+    conn.register("keiei_company_loyalty", keiei_loyalty_df)
+
+    print("collections/*.sql を BigQuery 用に集計中...")
+    views: dict[str, Any] = {}
+    for sql_file in sorted(_COLLECTIONS_DIR.glob("*.sql")):
+        try:
+            views[sql_file.stem] = conn.sql(sql_file.read_text()).df()
+            print(f"  {sql_file.name} → OK")
+        except Exception as e:
+            print(f"  警告: {sql_file.name} スキップ ({e})", file=sys.stderr)
 
     conn.close()
 
@@ -71,6 +86,11 @@ def update_duckdb() -> None:
         keiei_feature_health=keiei_health_df,
         keiei_company_loyalty=keiei_loyalty_df,
     )
+
+    if views:
+        print("BigQuery に集計結果を保存中...")
+        db.save_views(**views)
+
     print("完了")
 
 

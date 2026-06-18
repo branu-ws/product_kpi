@@ -66,24 +66,29 @@ uv run pytest
 
 ## DuckDB と BigQuery の使い分け
 
-DuckDB と BigQuery は **並列の書き込み先**だ。DuckDB を経由して BigQuery に入るわけではないぞ！
+役割が明確に分かれているぞ！
 
 ```
 Redash API
     │
+    ▼
+DuckDB (正規化テーブルを計算・保存)
     │
-    ├─► DuckDB (常に書き込む)
-    └─► BigQuery (USE_BIGQUERY=1 のときだけ追加で書き込む)
+    ├─► cache.duckdb  ← ローカル開発・Notion 同期用
+    │
+    └─► collections/*.sql を実行
+            │
+            └─► BigQuery (集計済みテーブルのみ) ← Looker Studio 用
 ```
 
 | | DuckDB | BigQuery |
 |---|---|---|
-| **役割** | ローカル開発・SQL デバッグ用 | 本番データ永続化・Looker Studio 用 |
-| **更新** | `kpi-update` 実行のたびに全書き換え | Cloud Run 実行時に WRITE_TRUNCATE |
-| **アクセス** | ローカルファイル (`cache.duckdb`) | GCP プロジェクト経由 |
+| **何を保存** | 正規化テーブル (`feature_health` 等) | `collections/*.sql` の集計結果のみ |
+| **役割** | 計算エンジン＋ローカルキャッシュ | Looker Studio に食わせる置き場 |
+| **更新** | `kpi-update` のたびに全書き換え | Cloud Run 実行時に WRITE_TRUNCATE |
 | **必要な設定** | なし（デフォルト） | `USE_BIGQUERY=1` + `GCP_PROJECT_ID` |
 
-ローカルでは DuckDB だけで完結するため、GCP への接続なしに開発・検証できるぞ。Cloud Run では環境変数で BigQuery 書き込みが自動で有効になる！
+Looker Studio に新しい指標を追加したいときは `collections/` に SQL ファイルを追加するだけだ！次回の `kpi-update` で自動的に BigQuery に反映されるぞ。
 
 ---
 
