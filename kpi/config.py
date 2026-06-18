@@ -1,55 +1,53 @@
-"""KPI 閾値・ロイヤリティ判定パラメータ。ここの数値を変えるだけで全体に反映される。"""
+"""config.yml の kpi セクションを pydantic で検証して公開する。
 
-from dataclasses import dataclass
+パラメータを変更したいときは config.yml を編集するだけでよい。
+コードは変更不要。
+"""
+
+from pathlib import Path
+
+import yaml  # type: ignore[import-untyped]
+from pydantic import BaseModel
+
+_CONFIG_PATH = Path(__file__).parent.parent / "config.yml"
 
 
-@dataclass(frozen=True)
-class FeatureThreshold:
+class FeatureThreshold(BaseModel, frozen=True):
     good_min: int
     normal_min: int
 
 
-@dataclass(frozen=True)
-class LoyaltyParams:
-    god_good_min: int = 5  # 神: good 機能数の最小値
-    god_months: int = 3  # 神: 継続月数
-    fan_good_min: int = 2  # ファン: good 機能数の最小値
-    fan_months: int = 3  # ファン: 継続月数
-    jisou_good_min: int = 1  # 自走: good 機能数の最小値
-    jisou_months: int = 2  # 自走: 継続月数
-    dansoku_months: int = 2  # 断続的に活用: normal 継続月数
-    tamani_months: int = 1  # たまに活用: good/normal が 1 か月以上
-    rihan_months: int = 3  # 離反状態: 利用回数ゼロが続く月数
+class LoyaltyParams(BaseModel, frozen=True):
+    god_good_min: int
+    god_months: int
+    fan_good_min: int
+    fan_months: int
+    jisou_good_min: int
+    jisou_months: int
+    dansoku_months: int
+    tamani_months: int
+    rihan_months: int
 
 
-FEATURE_THRESHOLDS: dict[str, FeatureThreshold] = {
-    "工程作成": FeatureThreshold(good_min=20, normal_min=5),
-    "出面": FeatureThreshold(good_min=10, normal_min=3),
-    "出来高": FeatureThreshold(good_min=10, normal_min=3),
-    "ホワイトボード": FeatureThreshold(good_min=10, normal_min=3),
-    "日報": FeatureThreshold(good_min=10, normal_min=3),
-    "報告書": FeatureThreshold(good_min=10, normal_min=3),
-}
+class _KpiSettings(BaseModel, frozen=True):
+    feature_thresholds: dict[str, FeatureThreshold]
+    keiei_feature_thresholds: dict[str, FeatureThreshold]
+    loyalty: LoyaltyParams
+    plan_type_codes: dict[str, str]
+    active_plan_types: list[str]
 
-KEIEI_FEATURE_THRESHOLDS: dict[str, FeatureThreshold] = {
-    "案件ステータス更新": FeatureThreshold(good_min=2, normal_min=1),
-    "見積原価登録": FeatureThreshold(good_min=2, normal_min=1),
-    "見積売上登録": FeatureThreshold(good_min=2, normal_min=1),
-    "実績原価登録": FeatureThreshold(good_min=2, normal_min=1),
-    "実績売上登録": FeatureThreshold(good_min=2, normal_min=1),
-    "請求書発行": FeatureThreshold(good_min=2, normal_min=1),
-    "OCR処理": FeatureThreshold(good_min=2, normal_min=1),
-    "原価ページPV": FeatureThreshold(good_min=2, normal_min=1),
-}
 
-LOYALTY = LoyaltyParams()
+def _load() -> _KpiSettings:
+    raw = yaml.safe_load(_CONFIG_PATH.read_text())
+    return _KpiSettings.model_validate(raw["kpi"])
 
-# CAS items.code → plan_type のマッピング
-PLAN_TYPE_CODES: dict[str, str] = {
-    "business": "plus",
-    "business_annual": "plus",
-    "personal_annual": "mini",
-}
 
-# 分析対象プラン: "mini" を追加すれば mini も含まれる
-ACTIVE_PLAN_TYPES: list[str] = ["plus"]
+_settings = _load()
+
+FEATURE_THRESHOLDS: dict[str, FeatureThreshold] = dict(_settings.feature_thresholds)
+KEIEI_FEATURE_THRESHOLDS: dict[str, FeatureThreshold] = dict(
+    _settings.keiei_feature_thresholds
+)
+LOYALTY: LoyaltyParams = _settings.loyalty
+PLAN_TYPE_CODES: dict[str, str] = dict(_settings.plan_type_codes)
+ACTIVE_PLAN_TYPES: list[str] = list(_settings.active_plan_types)
