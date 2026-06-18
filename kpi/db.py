@@ -42,7 +42,7 @@ def _save_duckdb(**tables: pd.DataFrame) -> None:
 
 
 def _save_bigquery(**tables: pd.DataFrame) -> None:
-    from google.cloud import bigquery  # type: ignore[import-not-found]
+    from google.cloud import bigquery
 
     project = os.environ["GCP_PROJECT_ID"]
     dataset = os.getenv("BQ_DATASET", "kpi")

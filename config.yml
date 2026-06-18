@@ -1,0 +1,25 @@
+schedule:
+  cron: "0 2 * * 1"    # 毎週月曜 02:00 JST
+
+notification:
+  email:
+    - t.tsuyama@branu.jp
+
+gcp:
+  project_id: "product-department-496703"
+  bq_dataset: "kpi"
+  region: "asia-northeast1"
+  job_name: "kpi-pipeline-job"
+
+notion:
+  months_to_show: 18    # 横展開する月数
+  outputs:
+    - name: "cross_product_matrix"
+      sql: "collections/output6_cross_product_matrix.sql"
+      db_id: "3829cbb2313080df95e2c8b0756f01f4"
+      ds_id: "3829cbb2-3130-80f1-a11f-000be4b6b8b7"
+    # 追加する場合はここに追記:
+    # - name: "loyalty_trend"
+    #   sql: "collections/output3_loyalty_trend.sql"
+    #   db_id: ""
+    #   ds_id: ""

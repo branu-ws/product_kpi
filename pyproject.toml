@@ -1,14 +1,18 @@
 [project]
-name = "get-kpi"
+name = "product_kpi"
 version = "0.1.0"
 description = "Add your description here"
 readme = "README.md"
 requires-python = ">=3.12"
 dependencies = [
     "duckdb>=1.5.3",
+    "google-cloud-bigquery>=3.42.0",
     "httpx>=0.28.1",
+    "notion-client>=3.1.0",
     "pandas>=3.0.3",
+    "pyarrow>=24.0.0",
     "python-dotenv>=1.2.2",
+    "pyyaml>=6.0.3",
 ]
 
 [dependency-groups]
@@ -16,6 +20,7 @@ dev = [
     "mypy>=1.15.0",
     "pandas-stubs>=3.0.3.260530",
     "pre-commit>=4.0.0",
+    "pytest>=9.1.0",
     "ruff>=0.11.0",
 ]
 
@@ -62,3 +67,7 @@ strict = true
 warn_return_any = true
 warn_unused_configs = true
 show_error_codes = true
+
+[[tool.mypy.overrides]]
+module = "tests.*"
+ignore_errors = true
