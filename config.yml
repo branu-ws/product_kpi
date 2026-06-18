@@ -53,8 +53,8 @@ notion:
       ds_id: "3829cbb2-3130-80f1-a11f-000be4b6b8b7"
     - name: "work_single_product_usage"
       sql: "collections/notion/work/single_product_usage_timeseries.sql"
-      db_id: ""   # TODO: Notion DB の ID を入力してください
-      ds_id: ""   # TODO: Notion DS の ID を入力してください
+      db_id: "3839cbb231308064b927d0f426943948"
+      ds_id: "3839cbb2-3130-809b-a918-000c20da5c2f"
 
 gcp:
   project_id: product-department-496703
