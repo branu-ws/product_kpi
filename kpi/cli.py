@@ -8,6 +8,7 @@ from typing import Any
 
 import duckdb
 import httpx
+import pandas as pd
 from dotenv import load_dotenv
 from tqdm import tqdm
 
@@ -112,7 +113,12 @@ def update_duckdb() -> None:
             table_name = "_".join(parts[1:])
             pbar.set_description(f"SQL実行  {dataset}.{table_name:<40}")
             try:
-                views[dataset][table_name] = conn.sql(sql_file.read_text()).df()
+                df = conn.sql(sql_file.read_text()).df()
+                if "usage_month" in df.columns:
+                    df["usage_month"] = pd.to_datetime(
+                        df["usage_month"] + "-01"
+                    ).dt.date
+                views[dataset][table_name] = df
             except Exception as e:
                 log.warning("警告: %s スキップ (%s)", rel, e)
 
