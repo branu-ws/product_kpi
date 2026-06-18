@@ -70,6 +70,17 @@ class TestHealthThreshold:
         row = df[(df["feature"] == "出面") & (df["usage_month"] == month)]
         assert row.iloc[0]["health"] == "normal"
 
+    def test_good_minus_1_is_normal(self, conn):
+        uuid, pid, month = "aaaa", 1, "2024-01"
+        conn.register("customer_lifecycle", _make_lifecycle(uuid, month))
+        conn.register("work_user_history", _make_history(pid, "出面", month, count=9))
+        conn.register("work_process_id_generator", _make_projects(pid, uuid))
+        conn.register("companies", _make_companies(uuid))
+
+        df = feature_health.build(conn)
+        row = df[(df["feature"] == "出面") & (df["usage_month"] == month)]
+        assert row.iloc[0]["health"] == "normal"
+
     def test_bad_below_normal(self, conn):
         uuid, pid, month = "aaaa", 1, "2024-01"
         conn.register("customer_lifecycle", _make_lifecycle(uuid, month))

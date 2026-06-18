@@ -110,6 +110,22 @@ class TestGod:
         _register(conn, uuid, months, good=5)
         assert _tier(conn, uuid, "2024-02") != "神"
 
+    def test_god_fails_if_one_month_drops(self, conn):
+        uuid = "aaaa"
+        fh = pd.concat(
+            [
+                _feature_health(uuid, ["2024-01"], good=5),
+                _feature_health(uuid, ["2024-02"], good=4),
+                _feature_health(uuid, ["2024-03"], good=5),
+            ]
+        )
+        conn.register("feature_health", fh)
+        conn.register(
+            "work_user_history", _history(uuid, ["2024-01", "2024-02", "2024-03"])
+        )
+        conn.register("work_process_id_generator", _projects(uuid))
+        assert _tier(conn, uuid, "2024-03") != "神"
+
 
 class TestFan:
     def test_fan_requires_good2_for_3months(self, conn):
@@ -170,6 +186,23 @@ class TestMazui:
 
 
 class TestRihan:
+    def test_rihan_not_triggered_with_2months_zero(self, conn):
+        uuid = "aaaa"
+        months = ["2024-01", "2024-02"]
+        conn.register("feature_health", _feature_health(uuid, months, good=0, normal=0))
+        conn.register(
+            "work_user_history",
+            pd.DataFrame(
+                {
+                    "pid": [1],
+                    "content": ["出面"],
+                    "content_date": pd.to_datetime(["2024-01-01"]),
+                }
+            ),
+        )
+        conn.register("work_process_id_generator", _projects(uuid))
+        assert _tier(conn, uuid, "2024-02") != "離反状態"
+
     def test_rihan_requires_zero_usage_for_3months(self, conn):
         uuid = "aaaa"
         months = ["2024-01", "2024-02", "2024-03"]

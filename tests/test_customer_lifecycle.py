@@ -98,6 +98,28 @@ class TestOnboarding:
         df = customer_lifecycle.build(conn)
         assert (df["lifecycle_stage"] == "plus").all()
 
+    def test_lifecycle_stage_onboarding_mini(self, conn):
+        uuid = "aaaa"
+        _register(
+            conn,
+            _companies(uuid),
+            pd.DataFrame([_contract(uuid, "mini", "2024-01-01")]),
+            _history("2024-01"),
+        )
+        df = customer_lifecycle.build(conn)
+        assert (df["lifecycle_stage"] == "onboarding-mini").all()
+
+    def test_lifecycle_stage_mini_after_onboarding(self, conn):
+        uuid = "aaaa"
+        _register(
+            conn,
+            _companies(uuid),
+            pd.DataFrame([_contract(uuid, "mini", "2024-01-01")]),
+            _history("2024-04"),
+        )
+        df = customer_lifecycle.build(conn)
+        assert (df["lifecycle_stage"] == "mini").all()
+
 
 class TestPlusPriority:
     def test_plus_wins_over_mini_same_month(self, conn):
