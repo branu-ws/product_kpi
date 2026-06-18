@@ -48,7 +48,7 @@ notion:
   months_to_show: 18    # 横展開する月数
   outputs:
     - name: "cross_product_matrix"
-      sql: "collections/output6_cross_product_matrix.sql"
+      sql: "collections/notion/cross_product/cross_product_matrix_time_series.sql"
       db_id: "3829cbb2313080df95e2c8b0756f01f4"
       ds_id: "3829cbb2-3130-80f1-a11f-000be4b6b8b7"
     # 追加する場合はここに追記:
