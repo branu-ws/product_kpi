@@ -3,48 +3,48 @@
 WITH health_val AS (
     SELECT
         company_uuid, company_name, usage_month, plan_type, lifecycle_stage,
-        MAX(CASE WHEN feature = '工程作成'    THEN CASE health WHEN 'good' THEN 3 WHEN 'normal' THEN 2 ELSE 1 END END) AS 施工_工程作成,
-        MAX(CASE WHEN feature = '出面'        THEN CASE health WHEN 'good' THEN 3 WHEN 'normal' THEN 2 ELSE 1 END END) AS 施工_出面,
-        MAX(CASE WHEN feature = '出来高'      THEN CASE health WHEN 'good' THEN 3 WHEN 'normal' THEN 2 ELSE 1 END END) AS 施工_出来高,
-        MAX(CASE WHEN feature = 'ホワイトボード' THEN CASE health WHEN 'good' THEN 3 WHEN 'normal' THEN 2 ELSE 1 END END) AS 施工_ホワイトボード,
-        MAX(CASE WHEN feature = '日報'        THEN CASE health WHEN 'good' THEN 3 WHEN 'normal' THEN 2 ELSE 1 END END) AS 施工_日報,
-        MAX(CASE WHEN feature = '報告書'      THEN CASE health WHEN 'good' THEN 3 WHEN 'normal' THEN 2 ELSE 1 END END) AS 施工_報告書
+        MAX(CASE WHEN feature = '工程作成'    THEN CASE health WHEN 'good' THEN 3 WHEN 'normal' THEN 2 ELSE 1 END END) AS work_process,
+        MAX(CASE WHEN feature = '出面'        THEN CASE health WHEN 'good' THEN 3 WHEN 'normal' THEN 2 ELSE 1 END END) AS work_attendance,
+        MAX(CASE WHEN feature = '出来高'      THEN CASE health WHEN 'good' THEN 3 WHEN 'normal' THEN 2 ELSE 1 END END) AS work_progress,
+        MAX(CASE WHEN feature = 'ホワイトボード' THEN CASE health WHEN 'good' THEN 3 WHEN 'normal' THEN 2 ELSE 1 END END) AS work_whiteboard,
+        MAX(CASE WHEN feature = '日報'        THEN CASE health WHEN 'good' THEN 3 WHEN 'normal' THEN 2 ELSE 1 END END) AS work_diary,
+        MAX(CASE WHEN feature = '報告書'      THEN CASE health WHEN 'good' THEN 3 WHEN 'normal' THEN 2 ELSE 1 END END) AS work_report
     FROM feature_health
     GROUP BY company_uuid, company_name, usage_month, plan_type, lifecycle_stage
 ),
 keiei_val AS (
     SELECT
         company_uuid, usage_month,
-        MAX(CASE WHEN feature = '案件ステータス更新' THEN CASE health WHEN 'good' THEN 3 WHEN 'normal' THEN 2 ELSE 1 END END) AS 経営_案件ステータス更新,
-        MAX(CASE WHEN feature = '見積原価登録'       THEN CASE health WHEN 'good' THEN 3 WHEN 'normal' THEN 2 ELSE 1 END END) AS 経営_見積原価登録,
-        MAX(CASE WHEN feature = '見積売上登録'       THEN CASE health WHEN 'good' THEN 3 WHEN 'normal' THEN 2 ELSE 1 END END) AS 経営_見積売上登録,
-        MAX(CASE WHEN feature = '実績原価登録'       THEN CASE health WHEN 'good' THEN 3 WHEN 'normal' THEN 2 ELSE 1 END END) AS 経営_実績原価登録,
-        MAX(CASE WHEN feature = '実績売上登録'       THEN CASE health WHEN 'good' THEN 3 WHEN 'normal' THEN 2 ELSE 1 END END) AS 経営_実績売上登録,
-        MAX(CASE WHEN feature = '請求書発行'         THEN CASE health WHEN 'good' THEN 3 WHEN 'normal' THEN 2 ELSE 1 END END) AS 経営_請求書発行,
-        MAX(CASE WHEN feature = 'OCR処理'           THEN CASE health WHEN 'good' THEN 3 WHEN 'normal' THEN 2 ELSE 1 END END) AS 経営_OCR処理,
-        MAX(CASE WHEN feature = '原価ページPV'       THEN CASE health WHEN 'good' THEN 3 WHEN 'normal' THEN 2 ELSE 1 END END) AS 経営_原価ページPV
+        MAX(CASE WHEN feature = '案件ステータス更新' THEN CASE health WHEN 'good' THEN 3 WHEN 'normal' THEN 2 ELSE 1 END END) AS mgmt_project_status,
+        MAX(CASE WHEN feature = '見積原価登録'       THEN CASE health WHEN 'good' THEN 3 WHEN 'normal' THEN 2 ELSE 1 END END) AS mgmt_est_cost,
+        MAX(CASE WHEN feature = '見積売上登録'       THEN CASE health WHEN 'good' THEN 3 WHEN 'normal' THEN 2 ELSE 1 END END) AS mgmt_est_revenue,
+        MAX(CASE WHEN feature = '実績原価登録'       THEN CASE health WHEN 'good' THEN 3 WHEN 'normal' THEN 2 ELSE 1 END END) AS mgmt_actual_cost,
+        MAX(CASE WHEN feature = '実績売上登録'       THEN CASE health WHEN 'good' THEN 3 WHEN 'normal' THEN 2 ELSE 1 END END) AS mgmt_actual_revenue,
+        MAX(CASE WHEN feature = '請求書発行'         THEN CASE health WHEN 'good' THEN 3 WHEN 'normal' THEN 2 ELSE 1 END END) AS mgmt_invoice,
+        MAX(CASE WHEN feature = 'OCR処理'           THEN CASE health WHEN 'good' THEN 3 WHEN 'normal' THEN 2 ELSE 1 END END) AS mgmt_ocr,
+        MAX(CASE WHEN feature = '原価ページPV'       THEN CASE health WHEN 'good' THEN 3 WHEN 'normal' THEN 2 ELSE 1 END END) AS mgmt_cost_pv
     FROM keiei_feature_health
     GROUP BY company_uuid, usage_month
 )
 SELECT
-    w.company_name        AS 会社名,
-    w.usage_month         AS 月,
-    w.plan_type           AS プラン,
-    w.lifecycle_stage     AS ライフサイクル,
-    w.施工_工程作成,
-    w.施工_出面,
-    w.施工_出来高,
-    w.施工_ホワイトボード,
-    w.施工_日報,
-    w.施工_報告書,
-    k.経営_案件ステータス更新,
-    k.経営_見積原価登録,
-    k.経営_見積売上登録,
-    k.経営_実績原価登録,
-    k.経営_実績売上登録,
-    k.経営_請求書発行,
-    k.経営_OCR処理,
-    k.経営_原価ページPV
+    w.company_name        AS company_name_jp,
+    w.usage_month         AS month,
+    w.plan_type           AS plan,
+    w.lifecycle_stage     AS lifecycle,
+    w.work_process,
+    w.work_attendance,
+    w.work_progress,
+    w.work_whiteboard,
+    w.work_diary,
+    w.work_report,
+    k.mgmt_project_status,
+    k.mgmt_est_cost,
+    k.mgmt_est_revenue,
+    k.mgmt_actual_cost,
+    k.mgmt_actual_revenue,
+    k.mgmt_invoice,
+    k.mgmt_ocr,
+    k.mgmt_cost_pv
 FROM health_val AS w
 LEFT JOIN keiei_val AS k
     ON  w.company_uuid = k.company_uuid

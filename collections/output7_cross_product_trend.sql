@@ -103,20 +103,20 @@ trend AS (
     FROM classified
 )
 SELECT
-    t.company_name         AS 会社名,
-    t.usage_month          AS 月,
-    t.work_score           AS 施工スコア,
-    t.keiei_score          AS 経営スコア,
-    t.total_score          AS 合計スコア,
-    t.integration_tier     AS 機能連携度,
-    t.usage_freq           AS 利用頻度,
-    t.prev_tier            AS 前月連携度,
+    t.company_name         AS company_name_jp,
+    t.usage_month          AS month,
+    t.work_score           AS work_score,
+    t.keiei_score          AS mgmt_score,
+    t.total_score          AS total_score,
+    t.integration_tier     AS integration_tier,
+    t.usage_freq           AS usage_freq_label,
+    t.prev_tier            AS prev_integration_tier,
     CASE
         WHEN t.prev_tier IS NULL   THEN '-'
         WHEN cur.ord < prv.ord     THEN '↑'
         WHEN cur.ord > prv.ord     THEN '↓'
         ELSE                            '→'
-    END AS 連携度トレンド
+    END AS integration_trend
 FROM trend AS t
 LEFT JOIN tier_order AS cur ON t.integration_tier = cur.tier
 LEFT JOIN tier_order AS prv ON t.prev_tier        = prv.tier

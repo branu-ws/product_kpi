@@ -83,18 +83,18 @@ classified AS (
 )
 SELECT
     usage_month,
-    COUNT(CASE WHEN integration_tier = 'ファン'   AND usage_freq = 'good'   THEN 1 END) AS ファン_good,
-    COUNT(CASE WHEN integration_tier = 'ファン'   AND usage_freq = 'normal' THEN 1 END) AS ファン_normal,
-    COUNT(CASE WHEN integration_tier = 'ファン'   AND usage_freq = 'bad'    THEN 1 END) AS ファン_bad,
-    COUNT(CASE WHEN integration_tier = '自走'     AND usage_freq = 'good'   THEN 1 END) AS 自走_good,
-    COUNT(CASE WHEN integration_tier = '自走'     AND usage_freq = 'normal' THEN 1 END) AS 自走_normal,
-    COUNT(CASE WHEN integration_tier = '自走'     AND usage_freq = 'bad'    THEN 1 END) AS 自走_bad,
-    COUNT(CASE WHEN integration_tier = 'オンボ中' AND usage_freq = 'good'   THEN 1 END) AS オンボ中_good,
-    COUNT(CASE WHEN integration_tier = 'オンボ中' AND usage_freq = 'normal' THEN 1 END) AS オンボ中_normal,
-    COUNT(CASE WHEN integration_tier = 'オンボ中' AND usage_freq = 'bad'    THEN 1 END) AS オンボ中_bad,
-    COUNT(CASE WHEN integration_tier = '離反気味' AND usage_freq = 'good'   THEN 1 END) AS 離反気味_good,
-    COUNT(CASE WHEN integration_tier = '離反気味' AND usage_freq = 'normal' THEN 1 END) AS 離反気味_normal,
-    COUNT(CASE WHEN integration_tier = '離反気味' AND usage_freq = 'bad'    THEN 1 END) AS 離反気味_bad
+    COUNT(CASE WHEN integration_tier = 'ファン'   AND usage_freq = 'good'   THEN 1 END) AS fan_good,
+    COUNT(CASE WHEN integration_tier = 'ファン'   AND usage_freq = 'normal' THEN 1 END) AS fan_normal,
+    COUNT(CASE WHEN integration_tier = 'ファン'   AND usage_freq = 'bad'    THEN 1 END) AS fan_bad,
+    COUNT(CASE WHEN integration_tier = '自走'     AND usage_freq = 'good'   THEN 1 END) AS jisou_good,
+    COUNT(CASE WHEN integration_tier = '自走'     AND usage_freq = 'normal' THEN 1 END) AS jisou_normal,
+    COUNT(CASE WHEN integration_tier = '自走'     AND usage_freq = 'bad'    THEN 1 END) AS jisou_bad,
+    COUNT(CASE WHEN integration_tier = 'オンボ中' AND usage_freq = 'good'   THEN 1 END) AS onboarding_good,
+    COUNT(CASE WHEN integration_tier = 'オンボ中' AND usage_freq = 'normal' THEN 1 END) AS onboarding_normal,
+    COUNT(CASE WHEN integration_tier = 'オンボ中' AND usage_freq = 'bad'    THEN 1 END) AS onboarding_bad,
+    COUNT(CASE WHEN integration_tier = '離反気味' AND usage_freq = 'good'   THEN 1 END) AS churn_risk_good,
+    COUNT(CASE WHEN integration_tier = '離反気味' AND usage_freq = 'normal' THEN 1 END) AS churn_risk_normal,
+    COUNT(CASE WHEN integration_tier = '離反気味' AND usage_freq = 'bad'    THEN 1 END) AS churn_risk_bad
 FROM classified
 GROUP BY usage_month
 ORDER BY usage_month
