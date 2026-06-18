@@ -1,7 +1,6 @@
 """CLI エントリーポイント。pyproject.toml の [project.scripts] から呼ばれる。"""
 
 import logging
-import os
 import sys
 from collections import defaultdict
 from pathlib import Path
@@ -31,6 +30,8 @@ log = logging.getLogger(__name__)
 
 _OUTPUT_DIR = Path(__file__).parent.parent / "output" / "csv"
 _COLLECTIONS_DIR = Path(__file__).parent.parent / "collections"
+_BQ_DIR = _COLLECTIONS_DIR / "bigquery"    # bigquery/{dataset}/*.sql → BigQuery
+_NOTION_DIR = _COLLECTIONS_DIR / "notion"  # notion/*.sql → kpi-sync
 
 
 def update_duckdb() -> None:
@@ -98,15 +99,17 @@ def update_duckdb() -> None:
         conn.register("keiei_company_loyalty", keiei_loyalty_df)
         pbar.update(1)
 
-    default_dataset = os.getenv("BQ_DATASET", "kpi")
     views: dict[str, dict[str, Any]] = defaultdict(dict)
-    sql_files = sorted(_COLLECTIONS_DIR.rglob("*.sql"))
+    sql_files = sorted(_BQ_DIR.rglob("*.sql"))
     with tqdm(sql_files, bar_format=_bar_fmt) as pbar:
         for sql_file in pbar:
-            rel = sql_file.relative_to(_COLLECTIONS_DIR)
+            rel = sql_file.relative_to(_BQ_DIR)
             parts = rel.with_suffix("").parts
-            dataset = parts[0] if len(parts) > 1 else default_dataset
-            table_name = "_".join(parts[1:] if len(parts) > 1 else parts)
+            if len(parts) < 2:
+                log.warning("skip %s: place under bigquery/{dataset}/", rel)
+                continue
+            dataset = parts[0]
+            table_name = "_".join(parts[1:])
             pbar.set_description(f"SQL実行  {dataset}.{table_name:<40}")
             try:
                 views[dataset][table_name] = conn.sql(sql_file.read_text()).df()
