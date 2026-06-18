@@ -49,14 +49,17 @@ cp .env.example .env
 ## ローカル実行
 
 ```bash
-# ステップ1: Redash からデータを引き抜いて DuckDB に弾薬充填する
+# ステップ1: Redash からデータを引き抜いて DuckDB に弾薬充填する（BigQuery なし・高速）
 uv run kpi-update
+
+# ステップ1b: DuckDB + BigQuery に同時書き込む（GCP_PROJECT_ID は config.yml から自動読込）
+uv run kpi-bq-update
 
 # ステップ2: Notion へ速報を送れ
 uv run kpi-sync
 
 # ステップ3: CSV に出力して手元で確認したいときはこちら
-uv run kpi-export collections/*.sql
+uv run kpi-export collections/bigquery/kpi/output1_loyalty_distribution.sql
 
 # ステップ4: テストで品質を死守せよ
 uv run pytest
@@ -120,8 +123,10 @@ DuckDB (正規化テーブルを計算・保存)
 ローカルで最新データを確認したいときに使え。
 
 ```bash
-USE_BIGQUERY=1 GCP_PROJECT_ID=product-department-496703 uv run kpi-update
+uv run kpi-bq-update
 ```
+
+GCP プロジェクト ID は `config.yml` の `gcp.project_id` から自動で読み込まれる。環境変数の手入力は不要だ。
 
 ### ② Cloud Run を手動でトリガーして実行
 
