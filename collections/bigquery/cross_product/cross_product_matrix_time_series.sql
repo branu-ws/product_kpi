@@ -82,7 +82,7 @@ SELECT
     usage_month,
     customer_status,
     usage,
-    CASE usage WHEN 'good' THEN 2 WHEN 'normal' THEN 1 ELSE 0 END AS usage_value,
+    customer_status || '_' || usage AS segment,
     COUNT(*) AS num_company
 FROM classified
 GROUP BY usage_month, customer_status, usage
