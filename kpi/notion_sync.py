@@ -27,15 +27,15 @@ _NUMERIC_COLS = [
     "ファン_good",
     "ファン_normal",
     "ファン_bad",
-    "自走_good",
-    "自走_normal",
-    "自走_bad",
+    "自主利用_good",
+    "自主利用_normal",
+    "自主利用_bad",
     "オンボ中_good",
     "オンボ中_normal",
     "オンボ中_bad",
-    "離反気味_good",
-    "離反気味_normal",
-    "離反気味_bad",
+    "放置_good",
+    "放置_normal",
+    "放置_bad",
 ]
 
 

@@ -58,7 +58,7 @@ rolling AS (
             PARTITION BY company_key ORDER BY usage_month
             ROWS BETWEEN 1 PRECEDING AND CURRENT ROW
         ) AS fan_all2,
-        -- 直近2ヶ月すべてで 施工≥1 OR 経営≥1 → 自走
+        -- 直近2ヶ月すべてで 施工≥1 OR 経営≥1 → 自主利用
         MIN(CASE WHEN work_score >= 1 OR keiei_score >= 1 THEN 1 ELSE 0 END) OVER (
             PARTITION BY company_key ORDER BY usage_month
             ROWS BETWEEN 1 PRECEDING AND CURRENT ROW
@@ -71,8 +71,8 @@ classified AS (
         CASE
             WHEN lifecycle_stage LIKE 'onboarding%'          THEN 'オンボ中'
             WHEN window_size >= 2 AND fan_all2  = 1          THEN 'ファン'
-            WHEN window_size >= 2 AND jisou_all2 = 1         THEN '自走'
-            ELSE                                                   '離反気味'
+            WHEN window_size >= 2 AND jisou_all2 = 1         THEN '自主利用'
+            ELSE                                                   '放置'
         END AS integration_tier,
         CASE
             WHEN total_score >= 5 THEN 'good'
@@ -86,15 +86,15 @@ SELECT
     COUNT(CASE WHEN integration_tier = 'ファン'   AND usage_freq = 'good'   THEN 1 END) AS ファン_good,
     COUNT(CASE WHEN integration_tier = 'ファン'   AND usage_freq = 'normal' THEN 1 END) AS ファン_normal,
     COUNT(CASE WHEN integration_tier = 'ファン'   AND usage_freq = 'bad'    THEN 1 END) AS ファン_bad,
-    COUNT(CASE WHEN integration_tier = '自走'     AND usage_freq = 'good'   THEN 1 END) AS 自走_good,
-    COUNT(CASE WHEN integration_tier = '自走'     AND usage_freq = 'normal' THEN 1 END) AS 自走_normal,
-    COUNT(CASE WHEN integration_tier = '自走'     AND usage_freq = 'bad'    THEN 1 END) AS 自走_bad,
+    COUNT(CASE WHEN integration_tier = '自主利用'     AND usage_freq = 'good'   THEN 1 END) AS 自主利用_good,
+    COUNT(CASE WHEN integration_tier = '自主利用'     AND usage_freq = 'normal' THEN 1 END) AS 自主利用_normal,
+    COUNT(CASE WHEN integration_tier = '自主利用'     AND usage_freq = 'bad'    THEN 1 END) AS 自主利用_bad,
     COUNT(CASE WHEN integration_tier = 'オンボ中' AND usage_freq = 'good'   THEN 1 END) AS オンボ中_good,
     COUNT(CASE WHEN integration_tier = 'オンボ中' AND usage_freq = 'normal' THEN 1 END) AS オンボ中_normal,
     COUNT(CASE WHEN integration_tier = 'オンボ中' AND usage_freq = 'bad'    THEN 1 END) AS オンボ中_bad,
-    COUNT(CASE WHEN integration_tier = '離反気味' AND usage_freq = 'good'   THEN 1 END) AS 離反気味_good,
-    COUNT(CASE WHEN integration_tier = '離反気味' AND usage_freq = 'normal' THEN 1 END) AS 離反気味_normal,
-    COUNT(CASE WHEN integration_tier = '離反気味' AND usage_freq = 'bad'    THEN 1 END) AS 離反気味_bad
+    COUNT(CASE WHEN integration_tier = '放置' AND usage_freq = 'good'   THEN 1 END) AS 放置_good,
+    COUNT(CASE WHEN integration_tier = '放置' AND usage_freq = 'normal' THEN 1 END) AS 放置_normal,
+    COUNT(CASE WHEN integration_tier = '放置' AND usage_freq = 'bad'    THEN 1 END) AS 放置_bad
 FROM classified
 GROUP BY usage_month
 ORDER BY usage_month
