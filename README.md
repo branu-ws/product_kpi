@@ -64,6 +64,26 @@ uv run pytest
 
 ---
 
+## 新しい指標を Looker Studio に追加する方法
+
+**`collections/` に SQL ファイルを置くだけだ！** 次回の `kpi-update` で自動的に BigQuery に反映されるぞ。
+
+```
+collections/
+  output1_loyalty_distribution.sql    → BigQuery: kpi.output1_loyalty_distribution
+  output6_cross_product_matrix.sql    → BigQuery: kpi.output6_cross_product_matrix
+  keiei/
+    output1_loyalty_distribution.sql  → BigQuery: keiei.output1_loyalty_distribution
+  新プロダクト/
+    output1.sql                       → BigQuery: 新プロダクト.output1  ← 自動でデータセット作成
+```
+
+**サブディレクトリ = BigQuery データセット**になる。プロダクトごとに分けておけば Looker Studio のアクセス権限もデータセット単位で管理できるぞ。
+
+Looker Studio は**1つのレポートで複数テーブルを参照できる**。グラフごとに別テーブルを指定したり、「データブレンド」で複数テーブルを結合したりすることも可能だ。
+
+---
+
 ## DuckDB と BigQuery の使い分け
 
 役割が明確に分かれているぞ！
@@ -76,7 +96,7 @@ DuckDB (正規化テーブルを計算・保存)
     │
     ├─► cache.duckdb  ← ローカル開発・Notion 同期用
     │
-    └─► collections/*.sql を実行
+    └─► collections/**/*.sql を実行
             │
             └─► BigQuery (集計済みテーブルのみ) ← Looker Studio 用
 ```
@@ -87,8 +107,6 @@ DuckDB (正規化テーブルを計算・保存)
 | **役割** | 計算エンジン＋ローカルキャッシュ | Looker Studio に食わせる置き場 |
 | **更新** | `kpi-update` のたびに全書き換え | Cloud Run 実行時に WRITE_TRUNCATE |
 | **必要な設定** | なし（デフォルト） | `USE_BIGQUERY=1` + `GCP_PROJECT_ID` |
-
-Looker Studio に新しい指標を追加したいときは `collections/` に SQL ファイルを追加するだけだ！次回の `kpi-update` で自動的に BigQuery に反映されるぞ。
 
 ---
 
