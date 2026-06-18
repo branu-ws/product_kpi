@@ -16,6 +16,17 @@ dependencies = [
     "pyyaml>=6.0.3",
 ]
 
+[tool.uv]
+package = true
+
+[tool.setuptools.packages.find]
+include = ["kpi*"]
+
+[project.scripts]
+kpi-update = "kpi.cli:update_duckdb"
+kpi-sync   = "kpi.cli:sync_notion"
+kpi-export = "kpi.cli:export_csv"
+
 [dependency-groups]
 dev = [
     "mypy>=1.15.0",

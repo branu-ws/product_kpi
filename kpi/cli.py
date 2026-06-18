@@ -1,11 +1,11 @@
-"""Redash から全データを取得して DuckDB キャッシュを更新する。
+"""CLI エントリーポイント。pyproject.toml の [project.scripts] から呼ばれる。"""
 
-使い方:
-    uv run python update_duckdb.py
-"""
+import sys
+from pathlib import Path
 
 import duckdb
 import httpx
+from dotenv import load_dotenv
 
 from kpi import (
     companies,
@@ -15,13 +15,17 @@ from kpi import (
     db,
     feature_health,
     keiei_user_history,
+    notion_sync,
     users,
     work_process_id_generator,
     work_user_history,
 )
 
+_OUTPUT_DIR = Path(__file__).parent.parent / "output" / "csv"
 
-def main() -> None:
+
+def update_duckdb() -> None:
+    """Redash からデータを取得して DuckDB キャッシュと BigQuery を更新する。"""
     print("Redash からデータを取得中...")
     with httpx.Client() as client:
         history_df = work_user_history.fetch(client)
@@ -70,5 +74,38 @@ def main() -> None:
     print("完了")
 
 
-if __name__ == "__main__":
-    main()
+def sync_notion() -> None:
+    """config.yml の notion.outputs を Notion DB に同期する。"""
+    load_dotenv()
+    print("DuckDB に接続中...")
+    conn = db.load()
+    notion_sync.sync_all(conn)
+    conn.close()
+
+
+def export_csv() -> None:
+    """SQL ファイルを実行して CSV に出力する。
+
+    使い方:
+        uv run kpi-export collections/output1_loyalty_distribution.sql
+        uv run kpi-export collections/*.sql
+    """
+    args = sys.argv[1:]
+    if not args:
+        print("使い方: kpi-export <sql_file> [<sql_file2> ...]", file=sys.stderr)
+        sys.exit(1)
+
+    sql_files = [Path(a) for a in args]
+    conn = db.load()
+    _OUTPUT_DIR.mkdir(parents=True, exist_ok=True)
+
+    for sql_file in sql_files:
+        sql = sql_file.read_text(encoding="utf-8")
+        result = conn.sql(sql).df()
+        output_path = _OUTPUT_DIR / (sql_file.stem + ".csv")
+        print(f"\n=== {sql_file.name} ===")
+        print(result.to_string())
+        result.to_csv(output_path, index=False, encoding="utf-8-sig")
+        print(f"-> {output_path} に保存しました")
+
+    conn.close()

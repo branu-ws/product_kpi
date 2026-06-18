@@ -50,13 +50,13 @@ cp .env.example .env
 
 ```bash
 # ステップ1: Redash からデータを引き抜いて DuckDB に弾薬充填する
-uv run python update_duckdb.py
+uv run kpi-update
 
 # ステップ2: Notion へ速報を送れ
-uv run python sync_notion.py
+uv run kpi-sync
 
 # ステップ3: CSV に出力して手元で確認したいときはこちら
-uv run python main.py collections/*.sql
+uv run kpi-export collections/*.sql
 
 # ステップ4: テストで品質を死守せよ
 uv run pytest
@@ -79,7 +79,7 @@ Redash API
 | | DuckDB | BigQuery |
 |---|---|---|
 | **役割** | ローカル開発・SQL デバッグ用 | 本番データ永続化・Looker Studio 用 |
-| **更新** | `update_duckdb.py` 実行のたびに全書き換え | Cloud Run 実行時に WRITE_TRUNCATE |
+| **更新** | `kpi-update` 実行のたびに全書き換え | Cloud Run 実行時に WRITE_TRUNCATE |
 | **アクセス** | ローカルファイル (`cache.duckdb`) | GCP プロジェクト経由 |
 | **必要な設定** | なし（デフォルト） | `USE_BIGQUERY=1` + `GCP_PROJECT_ID` |
 
@@ -97,7 +97,7 @@ Redash API
 ローカルで最新データを確認したいときに使え。
 
 ```bash
-USE_BIGQUERY=1 GCP_PROJECT_ID=product-department-496703 uv run python update_duckdb.py
+USE_BIGQUERY=1 GCP_PROJECT_ID=product-department-496703 uv run kpi-update
 ```
 
 ### ② Cloud Run を手動でトリガーして実行
@@ -230,7 +230,7 @@ notion:
 ### CSV (`output/csv/`)
 
 ```bash
-uv run python main.py collections/*.sql
+uv run kpi-export collections/*.sql
 ```
 
 | ファイル | 内容 |
