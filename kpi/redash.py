@@ -3,6 +3,7 @@ import time
 
 import httpx
 from dotenv import load_dotenv
+from tqdm import tqdm
 
 load_dotenv()
 
@@ -26,7 +27,11 @@ def get_data_source_id(client: httpx.Client, query_id: int) -> int:
 
 
 def fetch_result(client: httpx.Client, result_id: int) -> list[dict[str, object]]:
-    resp = client.get(f"{BASE_URL}/api/query_results/{result_id}", headers=_headers())
+    resp = client.get(
+        f"{BASE_URL}/api/query_results/{result_id}",
+        headers=_headers(),
+        timeout=120,
+    )
     resp.raise_for_status()
     return list(resp.json()["query_result"]["data"]["rows"])
 
@@ -37,7 +42,7 @@ def poll_job(client: httpx.Client, job_id: str) -> list[dict[str, object]]:
         resp.raise_for_status()
         job = resp.json()["job"]
         status: int = job["status"]
-        print(f"  [{_JOB_STATUS.get(status, status)}] {i * _POLL_INTERVAL}s elapsed")
+        tqdm.write(f"  [{_JOB_STATUS.get(status, status)}] {i * _POLL_INTERVAL}s")
 
         if status == 3:
             return fetch_result(client, int(job["query_result_id"]))
