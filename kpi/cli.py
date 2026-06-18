@@ -1,5 +1,6 @@
 """CLI エントリーポイント。pyproject.toml の [project.scripts] から呼ばれる。"""
 
+import logging
 import os
 import sys
 from collections import defaultdict
@@ -24,6 +25,9 @@ from kpi import (
     work_process_id_generator,
     work_user_history,
 )
+
+logging.basicConfig(level=logging.INFO, format="%(message)s")
+log = logging.getLogger(__name__)
 
 _OUTPUT_DIR = Path(__file__).parent.parent / "output" / "csv"
 _COLLECTIONS_DIR = Path(__file__).parent.parent / "collections"
@@ -103,16 +107,14 @@ def update_duckdb() -> None:
             parts = rel.with_suffix("").parts
             dataset = parts[0] if len(parts) > 1 else default_dataset
             table_name = "_".join(parts[1:] if len(parts) > 1 else parts)
-            label = f"{dataset}.{table_name}"
-            pbar.set_description(f"SQL実行  {label:<40}")
+            pbar.set_description(f"SQL実行  {dataset}.{table_name:<40}")
             try:
                 views[dataset][table_name] = conn.sql(sql_file.read_text()).df()
             except Exception as e:
-                tqdm.write(f"  警告: {rel} スキップ ({e})", file=sys.stderr)
+                log.warning("警告: %s スキップ (%s)", rel, e)
 
     conn.close()
 
-    print("DuckDB に保存中...")
     db.save(
         work_user_history=history_df,
         work_process_id_generator=projects_df,
@@ -128,16 +130,14 @@ def update_duckdb() -> None:
     )
 
     if views:
-        print("BigQuery に集計結果を保存中...")
         db.save_views(dict(views))
 
-    print("完了")
+    log.info("完了")
 
 
 def sync_notion() -> None:
     """config.yml の notion.outputs を Notion DB に同期する。"""
     load_dotenv()
-    print("DuckDB に接続中...")
     conn = db.load()
     notion_sync.sync_all(conn)
     conn.close()
@@ -152,7 +152,7 @@ def export_csv() -> None:
     """
     args = sys.argv[1:]
     if not args:
-        print("使い方: kpi-export <sql_file> [<sql_file2> ...]", file=sys.stderr)
+        log.error("使い方: kpi-export <sql_file> [<sql_file2> ...]")
         sys.exit(1)
 
     sql_files = [Path(a) for a in args]
@@ -168,9 +168,9 @@ def export_csv() -> None:
         output_path.parent.mkdir(parents=True, exist_ok=True)
         sql = sql_file.read_text(encoding="utf-8")
         result = conn.sql(sql).df()
-        print(f"\n=== {rel} ===")
-        print(result.to_string())
+        print(f"\n=== {rel} ===")  # noqa: T201
+        print(result.to_string())  # noqa: T201
         result.to_csv(output_path, index=False, encoding="utf-8-sig")
-        print(f"-> {output_path} に保存しました")
+        log.info("-> %s に保存しました", output_path)
 
     conn.close()

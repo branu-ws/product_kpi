@@ -12,11 +12,14 @@
   BQ_DATASET     : トップレベル SQL のデフォルトデータセット名 (デフォルト: kpi)
 """
 
+import logging
 import os
 from pathlib import Path
 
 import duckdb
 import pandas as pd
+
+log = logging.getLogger(__name__)
 
 DB_PATH = Path(__file__).parent.parent / "cache.duckdb"
 
@@ -51,7 +54,7 @@ def _save_duckdb(**tables: pd.DataFrame) -> None:
         conn.execute(f"CREATE TABLE {name} AS SELECT * FROM _tmp")
         conn.unregister("_tmp")
     conn.close()
-    print(f"  キャッシュ保存: {DB_PATH}")
+    log.info("キャッシュ保存: %s", DB_PATH)
 
 
 def _save_bigquery(dataset: str, **tables: pd.DataFrame) -> None:
@@ -65,7 +68,7 @@ def _save_bigquery(dataset: str, **tables: pd.DataFrame) -> None:
     ds.location = "asia-northeast1"
     try:
         client.create_dataset(ds)
-        print(f"  BigQuery データセット作成: {dataset}")
+        log.info("BigQuery データセット作成: %s", dataset)
     except Conflict:
         pass
 
@@ -77,7 +80,7 @@ def _save_bigquery(dataset: str, **tables: pd.DataFrame) -> None:
         table_ref = f"{project}.{dataset}.{name}"
         job = client.load_table_from_dataframe(frame, table_ref, job_config=job_config)
         job.result()
-        print(f"  BigQuery 保存: {table_ref} ({len(frame):,} rows)")
+        log.info("BigQuery 保存: %s (%s rows)", table_ref, f"{len(frame):,}")
 
 
 def load() -> duckdb.DuckDBPyConnection:

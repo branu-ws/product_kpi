@@ -27,7 +27,6 @@ WHERE comp.cid IS NOT NULL
 
 def fetch(client: httpx.Client) -> pd.DataFrame:
     """DS7 からユーザー一覧を取得する。"""
-    print("  DS7 からユーザー情報を取得中...")
     rows = redash.run_adhoc_query(client, _DATA_SOURCE_ID, _SQL)
     df = pd.DataFrame(rows)
     if df.empty:

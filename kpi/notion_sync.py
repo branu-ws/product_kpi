@@ -6,6 +6,7 @@
 接続先 DB/DS ID は config.yml で管理 (secrets ではないのでリポジトリに含める)。
 """
 
+import logging
 import os
 import re
 from pathlib import Path
@@ -15,6 +16,8 @@ import duckdb
 import pandas as pd
 import yaml  # type: ignore[import-untyped]
 from notion_client import Client
+
+log = logging.getLogger(__name__)
 
 _ROOT = Path(__file__).parent.parent
 _CONFIG_PATH = _ROOT / "config.yml"
@@ -50,11 +53,11 @@ def sync_all(conn: duckdb.DuckDBPyConnection) -> None:
         db_id: str = output["db_id"]
         ds_id: str = output["ds_id"]
 
-        print(f"\n[{name}] 同期開始...")
+        log.info("[%s] 同期開始...", name)
         sql = sql_path.read_text()
         df: pd.DataFrame = conn.sql(sql).df()
         _sync_output(notion, conn, df, db_id, ds_id, months_to_show)
-        print(f"[{name}] 完了")
+        log.info("[%s] 完了", name)
 
 
 def _sync_output(
@@ -69,13 +72,13 @@ def _sync_output(
     months: list[str] = [str(m) for m in df["usage_month"].tolist()]
     pivot = df.set_index("usage_month")[_NUMERIC_COLS].T
 
-    print("  既存ページをアーカイブ中...")
+    log.info("  既存ページをアーカイブ中...")
     _archive_all(notion, ds_id)
 
-    print("  月カラムをスキーマに同期中...")
+    log.info("  月カラムをスキーマに同期中...")
     _sync_month_columns(notion, ds_id, months)
 
-    print(f"  {len(_NUMERIC_COLS)} 行を書き込み中...")
+    log.info("  %d 行を書き込み中...", len(_NUMERIC_COLS))
     for metric in _NUMERIC_COLS:
         row = pivot.loc[metric]
         properties: dict[str, object] = {
@@ -83,7 +86,7 @@ def _sync_output(
             **{month: {"number": int(row[month])} for month in months},  # type: ignore[arg-type]
         }
         notion.pages.create(parent={"database_id": db_id}, properties=properties)
-        print(f"    作成: {metric}")
+        log.debug("    作成: %s", metric)
 
 
 def _archive_all(notion: Client, ds_id: str) -> None:

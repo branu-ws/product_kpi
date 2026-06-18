@@ -113,7 +113,6 @@ def fetch(client: httpx.Client) -> pd.DataFrame:
     try:
         rows = redash.run_saved_query(client, _QUERY_ID)
     except RuntimeError:
-        print("  キャッシュなし。SQL を直接実行します...")
         rows = redash.run_adhoc_query(client, _DATA_SOURCE_ID, _SQL)
 
     return _to_df(rows)

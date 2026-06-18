@@ -10,6 +10,7 @@ dependencies = [
     "httpx>=0.28.1",
     "notion-client>=3.1.0",
     "pandas>=3.0.3",
+    "pandas-gbq>=0.35.0",
     "pyarrow>=24.0.0",
     "pydantic>=2.13.4",
     "python-dotenv>=1.2.2",
@@ -56,6 +57,7 @@ select = [
     "ANN", # flake8-annotations (type hint enforcement)
     "B",   # flake8-bugbear
     "C4",  # flake8-comprehensions
+    "T20", # flake8-print (print 禁止 → logging を使う)
     "SIM", # flake8-simplify
     "RUF", # ruff-specific rules
     "ERA", # eradicate (no commented-out code)

@@ -42,7 +42,6 @@ def fetch(client: httpx.Client) -> pd.DataFrame:
     CAS の accounts.cid (UUID) を経由して company_uuid を解決する。
     DS1 へのクロス問い合わせは不要。
     """
-    print("  CAS から契約情報を取得中...")
     rows_cas = redash.run_adhoc_query(client, _CAS_DS_ID, _SQL_CAS)
     df_cas = pd.DataFrame(rows_cas)
 
@@ -56,7 +55,6 @@ def fetch(client: httpx.Client) -> pd.DataFrame:
     company_ids = [str(int(x)) for x in df_cas["company_id"].dropna().unique()]
     ids_sql = ", ".join(company_ids)
 
-    print("  CAS accounts から company_uuid (cid) を取得中...")
     sql_accounts = (
         f"SELECT company_id, cid AS company_uuid "
         f"FROM accounts WHERE company_id IN ({ids_sql}) AND cid IS NOT NULL"
