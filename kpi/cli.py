@@ -9,6 +9,7 @@ from typing import Any
 import duckdb
 import httpx
 from dotenv import load_dotenv
+from tqdm import tqdm
 
 from kpi import (
     companies,
@@ -32,16 +33,33 @@ def update_duckdb() -> None:
     """Redash からデータを取得して DuckDB キャッシュを更新し、
     collections/*.sql の集計結果を BigQuery に保存する。
     """
-    print("Redash からデータを取得中...")
-    with httpx.Client() as client:
-        history_df = work_user_history.fetch(client)
-        projects_df = work_process_id_generator.fetch(client)
-        companies_df = companies.fetch(client)
-        contracts_df = contracts.fetch(client)
-        users_df = users.fetch(client)
-        keiei_history_df = keiei_user_history.fetch(client)
+    _bar_fmt = "{l_bar}{bar}| {elapsed}"
 
-    print("KPI 指標を計算中...")
+    with httpx.Client() as client:
+        fetch_tasks: list[tuple[str, Any]] = [
+            ("work_user_history        ", lambda: work_user_history.fetch(client)),
+            (
+                "work_process_id_generator",
+                lambda: work_process_id_generator.fetch(client),
+            ),
+            ("companies                ", lambda: companies.fetch(client)),
+            ("contracts                ", lambda: contracts.fetch(client)),
+            ("users                    ", lambda: users.fetch(client)),
+            ("keiei_user_history       ", lambda: keiei_user_history.fetch(client)),
+        ]
+        fetched: dict[str, Any] = {}
+        with tqdm(fetch_tasks, bar_format=_bar_fmt) as pbar:
+            for name, fn in pbar:
+                pbar.set_description(f"Redash  {name}")
+                fetched[name.strip()] = fn()
+
+    history_df = fetched["work_user_history"]
+    projects_df = fetched["work_process_id_generator"]
+    companies_df = fetched["companies"]
+    contracts_df = fetched["contracts"]
+    users_df = fetched["users"]
+    keiei_history_df = fetched["keiei_user_history"]
+
     conn = duckdb.connect()
     conn.register("work_user_history", history_df)
     conn.register("work_process_id_generator", projects_df)
@@ -50,32 +68,47 @@ def update_duckdb() -> None:
     conn.register("users", users_df)
     conn.register("keiei_user_history", keiei_history_df)
 
-    lifecycle_df = customer_lifecycle.build(conn)
-    conn.register("customer_lifecycle", lifecycle_df)
+    with tqdm(total=5, bar_format=_bar_fmt) as pbar:
+        pbar.set_description("KPI計算  customer_lifecycle  ")
+        lifecycle_df = customer_lifecycle.build(conn)
+        conn.register("customer_lifecycle", lifecycle_df)
+        pbar.update(1)
 
-    health_df = feature_health.build(conn)
-    conn.register("feature_health", health_df)
-    loyalty_df = company_loyalty.build(conn)
-    conn.register("company_loyalty", loyalty_df)
+        pbar.set_description("KPI計算  feature_health      ")
+        health_df = feature_health.build(conn)
+        conn.register("feature_health", health_df)
+        pbar.update(1)
 
-    keiei_health_df = feature_health.build_keiei(conn)
-    conn.register("keiei_feature_health", keiei_health_df)
-    keiei_loyalty_df = company_loyalty.build_keiei(conn)
-    conn.register("keiei_company_loyalty", keiei_loyalty_df)
+        pbar.set_description("KPI計算  company_loyalty     ")
+        loyalty_df = company_loyalty.build(conn)
+        conn.register("company_loyalty", loyalty_df)
+        pbar.update(1)
 
-    print("collections/**/*.sql を BigQuery 用に集計中...")
+        pbar.set_description("KPI計算  keiei_feature_health")
+        keiei_health_df = feature_health.build_keiei(conn)
+        conn.register("keiei_feature_health", keiei_health_df)
+        pbar.update(1)
+
+        pbar.set_description("KPI計算  keiei_company_loyalty")
+        keiei_loyalty_df = company_loyalty.build_keiei(conn)
+        conn.register("keiei_company_loyalty", keiei_loyalty_df)
+        pbar.update(1)
+
     default_dataset = os.getenv("BQ_DATASET", "kpi")
     views: dict[str, dict[str, Any]] = defaultdict(dict)
-    for sql_file in sorted(_COLLECTIONS_DIR.rglob("*.sql")):
-        rel = sql_file.relative_to(_COLLECTIONS_DIR)
-        parts = rel.with_suffix("").parts
-        dataset = parts[0] if len(parts) > 1 else default_dataset
-        table_name = "_".join(parts[1:] if len(parts) > 1 else parts)
-        try:
-            views[dataset][table_name] = conn.sql(sql_file.read_text()).df()
-            print(f"  {rel} → {dataset}.{table_name}")
-        except Exception as e:
-            print(f"  警告: {rel} スキップ ({e})", file=sys.stderr)
+    sql_files = sorted(_COLLECTIONS_DIR.rglob("*.sql"))
+    with tqdm(sql_files, bar_format=_bar_fmt) as pbar:
+        for sql_file in pbar:
+            rel = sql_file.relative_to(_COLLECTIONS_DIR)
+            parts = rel.with_suffix("").parts
+            dataset = parts[0] if len(parts) > 1 else default_dataset
+            table_name = "_".join(parts[1:] if len(parts) > 1 else parts)
+            label = f"{dataset}.{table_name}"
+            pbar.set_description(f"SQL実行  {label:<40}")
+            try:
+                views[dataset][table_name] = conn.sql(sql_file.read_text()).df()
+            except Exception as e:
+                tqdm.write(f"  警告: {rel} スキップ ({e})", file=sys.stderr)
 
     conn.close()
 
