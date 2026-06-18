@@ -3,7 +3,6 @@ import time
 
 import httpx
 from dotenv import load_dotenv
-from tqdm import tqdm
 
 load_dotenv()
 
@@ -12,8 +11,6 @@ _API_KEY = os.environ["REDASH_API_KEY"]
 
 _POLL_INTERVAL = 5
 _POLL_MAX = 240  # 最大 20 分
-
-_JOB_STATUS = {1: "pending", 2: "running", 3: "success", 4: "failure", 5: "cancelled"}
 
 
 def _headers() -> dict[str, str]:
@@ -37,12 +34,11 @@ def fetch_result(client: httpx.Client, result_id: int) -> list[dict[str, object]
 
 
 def poll_job(client: httpx.Client, job_id: str) -> list[dict[str, object]]:
-    for i in range(_POLL_MAX):
+    for _ in range(_POLL_MAX):
         resp = client.get(f"{BASE_URL}/api/jobs/{job_id}", headers=_headers())
         resp.raise_for_status()
         job = resp.json()["job"]
         status: int = job["status"]
-        tqdm.write(f"  [{_JOB_STATUS.get(status, status)}] {i * _POLL_INTERVAL}s")
 
         if status == 3:
             return fetch_result(client, int(job["query_result_id"]))
