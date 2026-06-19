@@ -25,6 +25,17 @@ Cloud Run Job (kpi-pipeline-job)
 
 ---
 
+## KPI の考え方・指標定義
+
+KPI の設計思想・指標の算出ロジック・config.yml での調整方法は `docs/` に詳細をまとめている。コードを読む前にまずここを参照してくれ！
+
+| ドキュメント | 内容 |
+|------------|------|
+| [docs/single_product_kpi.md](docs/single_product_kpi.md) | 単一プロダクト KPI（施工管理・経営管理）の指標定義・ティア判定・config 設定 |
+| [docs/cross_product_kpi.md](docs/cross_product_kpi.md) | クロスプロダクト KPI（2 プロダクト横断）の指標定義・ティア判定・config 設定 |
+
+---
+
 ## 準備
 
 ### 必要な装備
@@ -64,39 +75,6 @@ uv run pytest
 ```
 
 ---
-
-## KPI 指標の設計
-
-### ティア判定 (多様性スコア)
-
-利用機能の多様性を**直近 3 ヶ月ローリング**で判定する。稼働日割でスコアを正規化しているので祝日の多い月もフェアに評価できる。
-
-| ティア | 単一プロダクト (diversity_tier) | クロスプロダクト (integration_tier) |
-|--------|-------------------------------|-------------------------------------|
-| **onboarding** | lifecycle_stage が onboarding-* | 同左 |
-| **fan** | 直近 3 ヶ月すべてで normal+ 機能 ≥ 2 | 直近 3 ヶ月すべてで work・keiei 両スコア ≥ 1 |
-| **proactive** | 直近 3 ヶ月すべてで normal+ 機能 ≥ 1 | 直近 3 ヶ月すべてで work または keiei スコア ≥ 1 |
-| **passive** | 上記以外 | 上記以外 |
-
-### 利用頻度 (usage_freq)
-
-機能スコア合計を稼働日割で算出する。
-
-| usage_freq | 条件 (feature_score または total_score) |
-|------------|-----------------------------------------|
-| good | ≥ 5 |
-| normal | ≥ 3 |
-| bad | < 3 |
-
-### 機能スコアの算出
-
-| スコア | 条件 |
-|--------|------|
-| 2 (good) | 稼働日割利用回数 ≥ good_min / avg_days |
-| 1 (normal) | 稼働日割利用回数 ≥ normal_min / avg_days |
-| 0 (bad) | それ以外 |
-
-閾値は `config.yml` の `kpi.feature_thresholds` / `kpi.keiei_feature_thresholds` で管理。
 
 ---
 
