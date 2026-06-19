@@ -2,8 +2,7 @@ import httpx
 import pandas as pd
 
 from kpi import redash
-
-_DATA_SOURCE_ID = 7  # careecon_work (keiei_plus_production にアクセス可能)
+from kpi.config import REDASH
 
 # テストアカウントを除外
 _EXCLUDE_COMPANY_IDS = "2, 8, 264, 64, 412"
@@ -110,5 +109,5 @@ def _to_df(rows: list[dict[str, object]]) -> pd.DataFrame:
 
 
 def fetch(client: httpx.Client) -> pd.DataFrame:
-    rows = redash.run_adhoc_query(client, _DATA_SOURCE_ID, _SQL)
+    rows = redash.run_adhoc_query(client, REDASH.data_sources.work, _SQL)
     return _to_df(rows)

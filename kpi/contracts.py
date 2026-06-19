@@ -13,9 +13,7 @@ import httpx
 import pandas as pd
 
 from kpi import redash
-from kpi.config import PLAN_TYPE_CODES
-
-_CAS_DS_ID = 2
+from kpi.config import PLAN_TYPE_CODES, REDASH
 
 _ITEM_CODES = list(PLAN_TYPE_CODES.keys())
 _ITEM_CODES_SQL = ", ".join(f'"{c}"' for c in _ITEM_CODES)
@@ -42,7 +40,7 @@ def fetch(client: httpx.Client) -> pd.DataFrame:
     CAS の accounts.cid (UUID) を経由して company_uuid を解決する。
     DS1 へのクロス問い合わせは不要。
     """
-    rows_cas = redash.run_adhoc_query(client, _CAS_DS_ID, _SQL_CAS)
+    rows_cas = redash.run_adhoc_query(client, REDASH.data_sources.cas, _SQL_CAS)
     df_cas = pd.DataFrame(rows_cas)
 
     if df_cas.empty:
@@ -59,7 +57,9 @@ def fetch(client: httpx.Client) -> pd.DataFrame:
         f"SELECT company_id, cid AS company_uuid "
         f"FROM accounts WHERE company_id IN ({ids_sql}) AND cid IS NOT NULL"
     )
-    rows_accounts = redash.run_adhoc_query(client, _CAS_DS_ID, sql_accounts)
+    rows_accounts = redash.run_adhoc_query(
+        client, REDASH.data_sources.cas, sql_accounts
+    )
     df_accounts = pd.DataFrame(rows_accounts).drop_duplicates(subset=["company_id"])
 
     df = df_cas.merge(df_accounts, on="company_id", how="inner")

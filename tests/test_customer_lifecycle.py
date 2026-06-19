@@ -1,17 +1,8 @@
 """customer_lifecycle.build() のユニットテスト。"""
 
-import duckdb
 import pandas as pd
-import pytest
 
 from kpi import customer_lifecycle
-
-
-@pytest.fixture()
-def conn():
-    c = duckdb.connect()
-    yield c
-    c.close()
 
 
 def _register(conn, companies, contracts, history):
@@ -61,9 +52,9 @@ class TestOnboarding:
             _history("2024-01", "2024-02", "2024-03"),
         )
         df = customer_lifecycle.build(conn)
-        assert df[df["usage_month"] == "2024-01"]["is_onboarding"].all()
-        assert df[df["usage_month"] == "2024-02"]["is_onboarding"].all()
-        assert df[df["usage_month"] == "2024-03"]["is_onboarding"].all()
+        assert df[df["month"] == "2024-01"]["is_onboarding"].all()
+        assert df[df["month"] == "2024-02"]["is_onboarding"].all()
+        assert df[df["month"] == "2024-03"]["is_onboarding"].all()
 
     def test_month_4_is_not_onboarding(self, conn):
         uuid = "aaaa"
@@ -74,7 +65,7 @@ class TestOnboarding:
             _history("2024-01", "2024-02", "2024-03", "2024-04"),
         )
         df = customer_lifecycle.build(conn)
-        assert not df[df["usage_month"] == "2024-04"]["is_onboarding"].any()
+        assert not df[df["month"] == "2024-04"]["is_onboarding"].any()
 
     def test_lifecycle_stage_onboarding_plus(self, conn):
         uuid = "aaaa"
@@ -132,7 +123,7 @@ class TestPlusPriority:
         )
         _register(conn, _companies(uuid), contracts, _history("2024-01"))
         df = customer_lifecycle.build(conn)
-        assert len(df[df["usage_month"] == "2024-01"]) == 1
+        assert len(df[df["month"] == "2024-01"]) == 1
         assert df.iloc[0]["plan_type"] == "plus"
 
 
@@ -146,7 +137,7 @@ class TestRetired:
             conn, _companies(uuid), contracts, _history("2024-01", "2024-02", "2024-03")
         )
         df = customer_lifecycle.build(conn)
-        stage = df[df["usage_month"] == "2024-03"]["lifecycle_stage"]
+        stage = df[df["month"] == "2024-03"]["lifecycle_stage"]
         assert (stage == "retired").all()
 
     def test_active_contract_is_not_retired(self, conn):

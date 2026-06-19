@@ -2,9 +2,7 @@ import httpx
 import pandas as pd
 
 from kpi import redash
-
-_QUERY_ID = 914
-_DATA_SOURCE_ID = 7  # 実DBのデータソースID(Query Results=11 とは別)
+from kpi.config import REDASH
 
 _SQL = """
 SELECT
@@ -111,8 +109,8 @@ def fetch(client: httpx.Client) -> pd.DataFrame:
     キャッシュ(query 914)があれば即返し、なければ SQL を直接実行する。
     """
     try:
-        rows = redash.run_saved_query(client, _QUERY_ID)
+        rows = redash.run_saved_query(client, REDASH.saved_queries.work_user_history)
     except RuntimeError:
-        rows = redash.run_adhoc_query(client, _DATA_SOURCE_ID, _SQL)
+        rows = redash.run_adhoc_query(client, REDASH.data_sources.work, _SQL)
 
     return _to_df(rows)

@@ -19,7 +19,7 @@ def build(conn: duckdb.DuckDBPyConnection) -> pd.DataFrame:
     """
     return conn.sql("""
         SELECT
-            strftime(h.content_date, '%Y-%m') AS usage_month,
+            strftime(h.content_date, '%Y-%m') AS month,
             h.content,
             COUNT(*)                           AS content_count,
             COUNT(DISTINCT c.company_name)     AS company_count,
@@ -27,6 +27,6 @@ def build(conn: duckdb.DuckDBPyConnection) -> pd.DataFrame:
         FROM work_user_history AS h
         INNER JOIN work_process_id_generator AS p ON h.pid = p.pid
         INNER JOIN companies AS c ON p.company_uuid = c.company_uuid
-        GROUP BY usage_month, h.content
-        ORDER BY usage_month, h.content
+        GROUP BY month, h.content
+        ORDER BY month, h.content
     """).df()

@@ -2,8 +2,7 @@ import httpx
 import pandas as pd
 
 from kpi import redash
-
-_DATA_SOURCE_ID = 1  # companies.name が存在するデータソース(query 910 で確認済み)
+from kpi.config import REDASH
 
 _SQL = """
 SELECT
@@ -24,5 +23,5 @@ WHERE
 
 def fetch(client: httpx.Client) -> pd.DataFrame:
     """company_uuid(UUID) -> company_name のマッピングを取得して DataFrame で返す。"""
-    rows = redash.run_adhoc_query(client, _DATA_SOURCE_ID, _SQL)
+    rows = redash.run_adhoc_query(client, REDASH.data_sources.db, _SQL)
     return pd.DataFrame(rows)

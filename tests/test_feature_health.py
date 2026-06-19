@@ -1,23 +1,14 @@
 """feature_health.build() のユニットテスト。"""
 
-import duckdb
 import pandas as pd
-import pytest
 
 from kpi import feature_health
-
-
-@pytest.fixture()
-def conn():
-    c = duckdb.connect()
-    yield c
-    c.close()
 
 
 def _make_lifecycle(uuid, month, stage="plus"):
     return pd.DataFrame(
         {
-            "usage_month": [month],
+            "month": [month],
             "company_uuid": [uuid],
             "company_name": ["テスト会社"],
             "plan_type": ["plus"],
@@ -56,7 +47,7 @@ class TestHealthThreshold:
         conn.register("companies", _make_companies(uuid))
 
         df = feature_health.build(conn)
-        row = df[(df["feature"] == "出面") & (df["usage_month"] == month)]
+        row = df[(df["feature"] == "出面") & (df["month"] == month)]
         assert row.iloc[0]["health"] == "good"
 
     def test_normal_at_boundary(self, conn):
@@ -67,7 +58,7 @@ class TestHealthThreshold:
         conn.register("companies", _make_companies(uuid))
 
         df = feature_health.build(conn)
-        row = df[(df["feature"] == "出面") & (df["usage_month"] == month)]
+        row = df[(df["feature"] == "出面") & (df["month"] == month)]
         assert row.iloc[0]["health"] == "normal"
 
     def test_good_minus_1_is_normal(self, conn):
@@ -78,7 +69,7 @@ class TestHealthThreshold:
         conn.register("companies", _make_companies(uuid))
 
         df = feature_health.build(conn)
-        row = df[(df["feature"] == "出面") & (df["usage_month"] == month)]
+        row = df[(df["feature"] == "出面") & (df["month"] == month)]
         assert row.iloc[0]["health"] == "normal"
 
     def test_bad_below_normal(self, conn):
@@ -89,7 +80,7 @@ class TestHealthThreshold:
         conn.register("companies", _make_companies(uuid))
 
         df = feature_health.build(conn)
-        row = df[(df["feature"] == "出面") & (df["usage_month"] == month)]
+        row = df[(df["feature"] == "出面") & (df["month"] == month)]
         assert row.iloc[0]["health"] == "bad"
 
     def test_kouteisakusei_good_threshold_is_20(self, conn):
@@ -106,7 +97,7 @@ class TestHealthThreshold:
         conn.register("companies", _make_companies(uuid))
 
         df = feature_health.build(conn)
-        row = df[(df["feature"] == "工程作成") & (df["usage_month"] == month)]
+        row = df[(df["feature"] == "工程作成") & (df["month"] == month)]
         assert row.iloc[0]["health"] == "good"
         assert row.iloc[0]["usage_count"] == 20
 
@@ -129,7 +120,7 @@ class TestZeroUsageFill:
         conn.register("companies", _make_companies(uuid))
 
         df = feature_health.build(conn)
-        no_usage = df[(df["feature"] == "日報") & (df["usage_month"] == month)]
+        no_usage = df[(df["feature"] == "日報") & (df["month"] == month)]
         assert no_usage.iloc[0]["usage_count"] == 0
         assert no_usage.iloc[0]["health"] == "bad"
 

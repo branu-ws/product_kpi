@@ -26,7 +26,7 @@ def build(conn: duckdb.DuckDBPyConnection) -> pd.DataFrame:
     result: pd.DataFrame = conn.sql(f"""
         WITH monthly_usage AS (
             SELECT
-                strftime(h.content_date, '%Y-%m') AS usage_month,
+                strftime(h.content_date, '%Y-%m') AS month,
                 p.company_uuid,
                 c.company_name,
                 CASE
@@ -40,17 +40,17 @@ def build(conn: duckdb.DuckDBPyConnection) -> pd.DataFrame:
             WHERE h.content IN (
                 '大工程', '小工程', '出面', '出来高', 'ホワイトボード', '日報', '報告書'
             )
-            GROUP BY usage_month, p.company_uuid, c.company_name, feature
+            GROUP BY month, p.company_uuid, c.company_name, feature
         ),
         all_months AS (
-            SELECT DISTINCT strftime(content_date, '%Y-%m') AS usage_month
+            SELECT DISTINCT strftime(content_date, '%Y-%m') AS month
             FROM work_user_history
         ),
         active_per_month AS (
             -- ACTIVE_PLAN_TYPES に "mini" を追加すれば mini も含まれる
             -- retired は除外、onboarding フラグは customer_lifecycle から取得
             SELECT DISTINCT
-                usage_month,
+                month,
                 company_uuid,
                 company_name,
                 plan_type,
@@ -62,7 +62,7 @@ def build(conn: duckdb.DuckDBPyConnection) -> pd.DataFrame:
         ),
         full_matrix AS (
             SELECT
-                a.usage_month,
+                a.month,
                 a.company_uuid,
                 a.company_name,
                 a.plan_type,
@@ -74,7 +74,7 @@ def build(conn: duckdb.DuckDBPyConnection) -> pd.DataFrame:
         ),
         usage_filled AS (
             SELECT
-                mx.usage_month,
+                mx.month,
                 mx.company_uuid,
                 mx.company_name,
                 mx.plan_type,
@@ -84,12 +84,12 @@ def build(conn: duckdb.DuckDBPyConnection) -> pd.DataFrame:
                 COALESCE(u.usage_count, 0) AS usage_count
             FROM full_matrix AS mx
             LEFT JOIN monthly_usage AS u
-                ON  mx.usage_month  = u.usage_month
+                ON  mx.month        = u.month
                 AND mx.company_uuid = u.company_uuid
                 AND mx.feature      = u.feature
         )
         SELECT
-            uf.usage_month,
+            uf.month,
             uf.company_uuid,
             uf.company_name,
             uf.plan_type,
@@ -104,7 +104,7 @@ def build(conn: duckdb.DuckDBPyConnection) -> pd.DataFrame:
             END AS health
         FROM usage_filled AS uf
         INNER JOIN _thresholds AS t ON uf.feature = t.feature
-        ORDER BY uf.usage_month, uf.company_name, uf.feature
+        ORDER BY uf.month, uf.company_name, uf.feature
     """).df()
 
     conn.unregister("_thresholds")
@@ -129,7 +129,7 @@ def build_keiei(conn: duckdb.DuckDBPyConnection) -> pd.DataFrame:
     result: pd.DataFrame = conn.sql(f"""
         WITH monthly_usage AS (
             SELECT
-                strftime(h.content_date, '%Y-%m') AS usage_month,
+                strftime(h.content_date, '%Y-%m') AS month,
                 h.company_uuid,
                 c.company_name,
                 h.content AS feature,
@@ -137,11 +137,11 @@ def build_keiei(conn: duckdb.DuckDBPyConnection) -> pd.DataFrame:
             FROM keiei_user_history AS h
             INNER JOIN companies AS c ON h.company_uuid = c.company_uuid
             WHERE h.content IN (SELECT feature FROM _keiei_thresholds)
-            GROUP BY usage_month, h.company_uuid, c.company_name, feature
+            GROUP BY month, h.company_uuid, c.company_name, feature
         ),
         active_per_month AS (
             SELECT DISTINCT
-                usage_month,
+                month,
                 company_uuid,
                 company_name,
                 plan_type,
@@ -153,7 +153,7 @@ def build_keiei(conn: duckdb.DuckDBPyConnection) -> pd.DataFrame:
         ),
         full_matrix AS (
             SELECT
-                a.usage_month,
+                a.month,
                 a.company_uuid,
                 a.company_name,
                 a.plan_type,
@@ -165,7 +165,7 @@ def build_keiei(conn: duckdb.DuckDBPyConnection) -> pd.DataFrame:
         ),
         usage_filled AS (
             SELECT
-                mx.usage_month,
+                mx.month,
                 mx.company_uuid,
                 mx.company_name,
                 mx.plan_type,
@@ -175,12 +175,12 @@ def build_keiei(conn: duckdb.DuckDBPyConnection) -> pd.DataFrame:
                 COALESCE(u.usage_count, 0) AS usage_count
             FROM full_matrix AS mx
             LEFT JOIN monthly_usage AS u
-                ON  mx.usage_month  = u.usage_month
+                ON  mx.month        = u.month
                 AND mx.company_uuid = u.company_uuid
                 AND mx.feature      = u.feature
         )
         SELECT
-            uf.usage_month,
+            uf.month,
             uf.company_uuid,
             uf.company_name,
             uf.plan_type,
@@ -195,7 +195,7 @@ def build_keiei(conn: duckdb.DuckDBPyConnection) -> pd.DataFrame:
             END AS health
         FROM usage_filled AS uf
         INNER JOIN _keiei_thresholds AS t ON uf.feature = t.feature
-        ORDER BY uf.usage_month, uf.company_name, uf.feature
+        ORDER BY uf.month, uf.company_name, uf.feature
     """).df()
 
     conn.unregister("_keiei_thresholds")

@@ -15,26 +15,34 @@ kpi:
     請求書発行:         {good_min: 2, normal_min: 1}
     OCR処理:            {good_min: 2, normal_min: 1}
     原価ページPV:       {good_min: 2, normal_min: 1}
-  loyalty:
-    god_good_min:   5   # 神: good 機能数の最小値
-    god_months:     3   # 神: 継続月数
-    fan_good_min:   2   # ファン: good 機能数の最小値
-    fan_months:     3   # ファン: 継続月数
-    jisou_good_min: 1   # 自走: good 機能数の最小値
-    jisou_months:   2   # 自走: 継続月数
-    dansoku_months: 2   # 2か月連続活用: normal 継続月数
-    tamani_months:  1   # 断続的活用: good/normal が 1 か月以上
-    rihan_months:   3   # 離反状態: 利用回数ゼロが続く月数
+  tier:
+    rolling_months:        3   # fan/proactive 判定のローリング期間 (月)
+    weekly_window:        12   # 週次表示・スコア正規化の対象週数
+    avg_months:           12   # 稼働日平均の参照月数 (日次閾値の基準)
+    fan_feature_min:       2   # 単一プロダクト fan: normal 以上の機能数の最小値
+    proactive_feature_min: 1   # 単一プロダクト proactive: 同上
+    xproduct_score_min:    1   # X-Product fan/proactive: 各プロダクトスコアの最小値
+    usage_freq_good:       5   # usage_freq good: feature_score の最小値
+    usage_freq_normal:     3   # usage_freq normal: 同上
   plan_type_codes:
     business:        plus
     business_annual: plus
     personal_annual: mini
   active_plan_types: [plus]  # "mini" を追加すれば mini も分析対象に含まれる
 
-schedule:
-  cron: "0 2 * * 1"    # 毎週月曜 02:00 JST
+redash:
+  base_url: "https://redash.careecon.jp"
+  data_sources:
+    db:   1   # careecon_db (MySQL) — companies マスタ
+    cas:  2   # careecon_cas (MySQL) — contracts, items, accounts
+    work: 7   # careecon_work (MySQL) — 施工管理・経営管理 利用履歴
+  saved_queries:
+    work_user_history: 914   # Redash 保存クエリ (施工管理利用履歴)
 
-notification:
+schedule:
+  cron: "0 2 * * 1"    # 毎週月曜 02:00 JST BigQuery/Notion更新
+
+notification: #Error 発生時通知メール
   email:
     - t.tsuyama@branu.jp
 
@@ -47,15 +55,18 @@ gcp:
 notion:
   months_to_show: 18    # 横展開する月数
   outputs:
-    - name: "cross_product_matrix"
-      sql: "collections/notion/cross_product/cross_product_matrix_time_series.sql"
+    - name: "cross_product"
+      sql: "collections/notion/cross_product/cross_product_combined_matrix.sql"
       db_id: "3829cbb2313080df95e2c8b0756f01f4"
       ds_id: "3829cbb2-3130-80f1-a11f-000be4b6b8b7"
+      time_col: "combined"
     - name: "work_single_product_usage"
-      sql: "collections/notion/work/single_product_usage_timeseries.sql"
+      sql: "collections/notion/work/single_product_matrix.sql"
       db_id: "3839cbb231308064b927d0f426943948"
-      ds_id: "3839cbb2-3130-809b-a918-000c20da5c2f"
-
-gcp:
-  project_id: product-department-496703
-  dataset: kpi
+      ds_id: "3839cbb2-3130-8093-802b-000be632b233"
+      time_col: "combined"
+    - name: "keiei_single_product_usage"
+      sql: "collections/notion/keiei/single_product_matrix.sql"
+      db_id: "3839cbb2313080708529c6be36d5f99f"
+      ds_id: "3839cbb2-3130-807f-a256-000b3c4ab45b"
+      time_col: "combined"

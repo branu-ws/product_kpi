@@ -9,19 +9,19 @@ from typing import Any
 
 import duckdb
 import httpx
-import pandas as pd
 from dotenv import load_dotenv
 from tqdm import tqdm
 
 from kpi import (
     companies,
-    company_loyalty,
     contracts,
+    cross_product,
     customer_lifecycle,
     db,
     feature_health,
     keiei_user_history,
     notion_sync,
+    single_product,
     users,
     work_process_id_generator,
     work_user_history,
@@ -35,7 +35,7 @@ log = logging.getLogger(__name__)
 
 _OUTPUT_DIR = Path(__file__).parent.parent / "output" / "csv"
 _COLLECTIONS_DIR = Path(__file__).parent.parent / "collections"
-_BQ_DIR = _COLLECTIONS_DIR / "bigquery"    # bigquery/{dataset}/*.sql → BigQuery
+_BQ_DIR = _COLLECTIONS_DIR / "bigquery"  # bigquery/{dataset}/*.sql → BigQuery
 _NOTION_DIR = _COLLECTIONS_DIR / "notion"  # notion/*.sql → kpi-sync
 
 
@@ -78,7 +78,7 @@ def update_duckdb() -> None:
     conn.register("users", users_df)
     conn.register("keiei_user_history", keiei_history_df)
 
-    with tqdm(total=5, bar_format=_bar_fmt) as pbar:
+    with tqdm(total=3, bar_format=_bar_fmt) as pbar:
         pbar.set_description("KPI計算  customer_lifecycle  ")
         lifecycle_df = customer_lifecycle.build(conn)
         conn.register("customer_lifecycle", lifecycle_df)
@@ -89,19 +89,28 @@ def update_duckdb() -> None:
         conn.register("feature_health", health_df)
         pbar.update(1)
 
-        pbar.set_description("KPI計算  company_loyalty     ")
-        loyalty_df = company_loyalty.build(conn)
-        conn.register("company_loyalty", loyalty_df)
-        pbar.update(1)
-
         pbar.set_description("KPI計算  keiei_feature_health")
         keiei_health_df = feature_health.build_keiei(conn)
         conn.register("keiei_feature_health", keiei_health_df)
         pbar.update(1)
 
-        pbar.set_description("KPI計算  keiei_company_loyalty")
-        keiei_loyalty_df = company_loyalty.build_keiei(conn)
-        conn.register("keiei_company_loyalty", keiei_loyalty_df)
+    with tqdm(total=3, bar_format=_bar_fmt) as pbar:
+        pbar.set_description("KPI計算  cross_product           ")
+        cp_monthly_df, cp_weekly_df = cross_product.build(conn)
+        conn.register("cross_product_monthly_company", cp_monthly_df)
+        conn.register("cross_product_company_weekly", cp_weekly_df)
+        pbar.update(1)
+
+        pbar.set_description("KPI計算  work_single_product     ")
+        sp_work_monthly_df, sp_work_weekly_df = single_product.build_work(conn)
+        conn.register("work_monthly_company", sp_work_monthly_df)
+        conn.register("work_company_weekly", sp_work_weekly_df)
+        pbar.update(1)
+
+        pbar.set_description("KPI計算  keiei_single_product    ")
+        sp_keiei_monthly_df, sp_keiei_weekly_df = single_product.build_keiei(conn)
+        conn.register("keiei_monthly_company", sp_keiei_monthly_df)
+        conn.register("keiei_company_weekly", sp_keiei_weekly_df)
         pbar.update(1)
 
     views: dict[str, dict[str, Any]] = defaultdict(dict)
@@ -118,10 +127,6 @@ def update_duckdb() -> None:
             pbar.set_description(f"SQL実行  {dataset}.{table_name:<40}")
             try:
                 df = conn.sql(sql_file.read_text()).df()
-                if "usage_month" in df.columns:
-                    df["usage_month"] = pd.to_datetime(
-                        df["usage_month"] + "-01"
-                    ).dt.date
                 views[dataset][table_name] = df
             except Exception as e:
                 log.warning("警告: %s スキップ (%s)", rel, e)
@@ -137,9 +142,13 @@ def update_duckdb() -> None:
         keiei_user_history=keiei_history_df,
         customer_lifecycle=lifecycle_df,
         feature_health=health_df,
-        company_loyalty=loyalty_df,
         keiei_feature_health=keiei_health_df,
-        keiei_company_loyalty=keiei_loyalty_df,
+        cross_product_monthly_company=cp_monthly_df,
+        cross_product_company_weekly=cp_weekly_df,
+        work_monthly_company=sp_work_monthly_df,
+        work_company_weekly=sp_work_weekly_df,
+        keiei_monthly_company=sp_keiei_monthly_df,
+        keiei_company_weekly=sp_keiei_weekly_df,
     )
 
     if views:

@@ -22,7 +22,7 @@ def build(conn: duckdb.DuckDBPyConnection) -> pd.DataFrame:
     """
     result: pd.DataFrame = conn.sql("""
         WITH all_months AS (
-            SELECT DISTINCT strftime(content_date, '%Y-%m') AS usage_month
+            SELECT DISTINCT strftime(content_date, '%Y-%m') AS month
             FROM work_user_history
         ),
         first_contract AS (
@@ -34,25 +34,25 @@ def build(conn: duckdb.DuckDBPyConnection) -> pd.DataFrame:
         ),
         active_ranked AS (
             SELECT
-                m.usage_month,
+                m.month,
                 con.company_uuid,
                 comp.company_name,
                 con.plan_type,
                 con.start_date,
-                m.usage_month < strftime(
+                m.month < strftime(
                     CAST(fc.first_start_date AS DATE) + INTERVAL '3' MONTH, '%Y-%m'
                 ) AS is_onboarding,
                 ROW_NUMBER() OVER (
-                    PARTITION BY m.usage_month, con.company_uuid
+                    PARTITION BY m.month, con.company_uuid
                     ORDER BY
                         CASE WHEN con.plan_type = 'plus' THEN 0 ELSE 1 END,
                         con.start_date DESC
                 ) AS rn
             FROM all_months AS m
             INNER JOIN contracts AS con
-                ON  strftime(con.start_date, '%Y-%m') <= m.usage_month
+                ON  strftime(con.start_date, '%Y-%m') <= m.month
                 AND (con.end_date IS NULL
-                     OR strftime(con.end_date, '%Y-%m') >= m.usage_month)
+                     OR strftime(con.end_date, '%Y-%m') >= m.month)
             INNER JOIN companies AS comp ON con.company_uuid = comp.company_uuid
             INNER JOIN first_contract AS fc
                 ON  con.company_uuid = fc.company_uuid
@@ -63,29 +63,29 @@ def build(conn: duckdb.DuckDBPyConnection) -> pd.DataFrame:
         ),
         retired_ranked AS (
             SELECT
-                m.usage_month,
+                m.month,
                 con.company_uuid,
                 comp.company_name,
                 con.plan_type,
                 con.start_date,
                 FALSE AS is_onboarding,
                 ROW_NUMBER() OVER (
-                    PARTITION BY m.usage_month, con.company_uuid
+                    PARTITION BY m.month, con.company_uuid
                     ORDER BY con.end_date DESC
                 ) AS rn
             FROM all_months AS m
             INNER JOIN contracts AS con
-                ON  strftime(con.end_date, '%Y-%m') < m.usage_month
+                ON  strftime(con.end_date, '%Y-%m') < m.month
                 AND con.status = 'finished'
             INNER JOIN companies AS comp ON con.company_uuid = comp.company_uuid
             WHERE NOT EXISTS (
                 SELECT 1 FROM active AS a
                 WHERE a.company_uuid = con.company_uuid
-                  AND a.usage_month  = m.usage_month
+                  AND a.month  = m.month
             )
         )
         SELECT
-            usage_month,
+            month,
             company_uuid,
             company_name,
             plan_type,
@@ -101,7 +101,7 @@ def build(conn: duckdb.DuckDBPyConnection) -> pd.DataFrame:
         UNION ALL
 
         SELECT
-            usage_month,
+            month,
             company_uuid,
             company_name,
             plan_type,
@@ -110,7 +110,7 @@ def build(conn: duckdb.DuckDBPyConnection) -> pd.DataFrame:
         FROM retired_ranked
         WHERE rn = 1
 
-        ORDER BY usage_month, company_name
+        ORDER BY month, company_name
     """).df()
 
     return result

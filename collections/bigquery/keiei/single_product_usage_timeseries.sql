@@ -1,4 +1,4 @@
--- 施工管理 (careecon work) 顧客ロイヤリティ月次時系列 (縦持ち / tidy format)
+-- 経営管理 (careecon keiei) 顧客ロイヤリティ月次時系列 (縦持ち / tidy format)
 -- customer_status: god / fan / proactive / two_month / occasional / inactive / abandoned
 SELECT
     CAST(month || '-01' AS DATE) AS month,
@@ -12,7 +12,7 @@ SELECT
         WHEN '離反状態'      THEN 'abandoned'
     END AS customer_status,
     COUNT(DISTINCT company_uuid) AS num_company
-FROM company_loyalty
+FROM keiei_company_loyalty
 WHERE loyalty_tier IS NOT NULL
 GROUP BY month, loyalty_tier
 ORDER BY month, customer_status

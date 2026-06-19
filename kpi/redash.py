@@ -4,9 +4,11 @@ import time
 import httpx
 from dotenv import load_dotenv
 
+from kpi.config import REDASH
+
 load_dotenv()
 
-BASE_URL = "https://redash.careecon.jp"
+BASE_URL = REDASH.base_url
 _API_KEY = os.environ["REDASH_API_KEY"]
 
 _POLL_INTERVAL = 5

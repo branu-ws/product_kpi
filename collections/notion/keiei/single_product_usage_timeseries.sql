@@ -1,4 +1,4 @@
--- 施工管理 (careecon work) 顧客ロイヤリティ月次時系列 (横持ち / Notion 表示用)
+-- 経営管理 (careecon keiei) 顧客ロイヤリティ月次時系列 (横持ち / Notion 表示用)
 SELECT
     month,
     COUNT(CASE WHEN loyalty_tier = '神'           THEN 1 END) AS god,
@@ -8,6 +8,6 @@ SELECT
     COUNT(CASE WHEN loyalty_tier = '断続的活用'    THEN 1 END) AS 断続的利用,
     COUNT(CASE WHEN loyalty_tier = 'まずい'        THEN 1 END) AS 利用停止,
     COUNT(CASE WHEN loyalty_tier = '離反状態'      THEN 1 END) AS 放置状態
-FROM company_loyalty
+FROM keiei_company_loyalty
 GROUP BY month
 ORDER BY month

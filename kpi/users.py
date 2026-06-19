@@ -7,8 +7,7 @@ import httpx
 import pandas as pd
 
 from kpi import redash
-
-_DATA_SOURCE_ID = 7
+from kpi.config import REDASH
 
 _SQL = """
 SELECT
@@ -27,7 +26,7 @@ WHERE comp.cid IS NOT NULL
 
 def fetch(client: httpx.Client) -> pd.DataFrame:
     """DS7 からユーザー一覧を取得する。"""
-    rows = redash.run_adhoc_query(client, _DATA_SOURCE_ID, _SQL)
+    rows = redash.run_adhoc_query(client, REDASH.data_sources.work, _SQL)
     df = pd.DataFrame(rows)
     if df.empty:
         return pd.DataFrame(
