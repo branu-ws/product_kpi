@@ -100,7 +100,7 @@ def build_daily_thresholds(avg_days: float) -> tuple[pd.DataFrame, pd.DataFrame]
 _MONTHLY_COMPANY_SQL = """
 WITH work_scores AS (
     SELECT
-        fh.usage_month,
+        fh.month AS usage_month,
         fh.company_uuid,
         fh.company_name,
         fh.lifecycle_stage,
@@ -110,9 +110,9 @@ WITH work_scores AS (
             ELSE 0
         END) AS work_score
     FROM feature_health fh
-    JOIN _work_thr   wt ON fh.feature     = wt.feature
-    JOIN _wd_monthly wd ON fh.usage_month = wd.usage_month
-    GROUP BY fh.usage_month, fh.company_uuid, fh.company_name, fh.lifecycle_stage
+    JOIN _work_thr   wt ON fh.feature = wt.feature
+    JOIN _wd_monthly wd ON fh.month   = wd.usage_month
+    GROUP BY fh.month, fh.company_uuid, fh.company_name, fh.lifecycle_stage
 ),
 work_scores_deduped AS (
     SELECT
@@ -130,7 +130,7 @@ work_scores_deduped AS (
 ),
 keiei_scores AS (
     SELECT
-        kh.usage_month,
+        kh.month AS usage_month,
         kh.company_uuid,
         SUM(CASE
             WHEN kh.usage_count::DOUBLE / wd.working_days >= kt.daily_good   THEN 2
@@ -138,9 +138,9 @@ keiei_scores AS (
             ELSE 0
         END) AS keiei_score
     FROM keiei_feature_health kh
-    JOIN _keiei_thr  kt ON kh.feature     = kt.feature
-    JOIN _wd_monthly wd ON kh.usage_month = wd.usage_month
-    GROUP BY kh.usage_month, kh.company_uuid
+    JOIN _keiei_thr  kt ON kh.feature = kt.feature
+    JOIN _wd_monthly wd ON kh.month   = wd.usage_month
+    GROUP BY kh.month, kh.company_uuid
 ),
 combined AS (
     SELECT
@@ -202,7 +202,7 @@ WITH active_companies AS (
     FROM customer_lifecycle
     WHERE plan_type IN ({plan_filter})
       AND lifecycle_stage != 'retired'
-      AND usage_month = (SELECT MAX(usage_month) FROM customer_lifecycle)
+      AND month = (SELECT MAX(month) FROM customer_lifecycle)
 ),
 all_week_company AS (
     -- 全アクティブ企業 × 全週のマトリクス（利用ゼロを bad として含めるため）
@@ -279,21 +279,16 @@ combined_w AS (
         ON w.company_uuid = k.company_uuid
        AND w.week_start   = k.week_start
 ),
--- integration_tier: その週が属する月の前月の判定値を使う
--- 例) 6月の週 → 5月の integration_tier
-prev_month_tier AS (
+-- integration_tier: 当月の月次ティアと一致させる
+month_tier AS (
     SELECT company_uuid, company_name, integration_tier,
-           -- この月の翌月の週に適用するため usage_month を1ヶ月進めた月キーを付与
-           STRFTIME(
-               (STRPTIME(usage_month, '%Y-%m') + INTERVAL '1 month'),
-               '%Y-%m'
-           ) AS apply_month
+           usage_month AS apply_month
     FROM _monthly_company
 )
 SELECT
     cw.week_start,
     cw.company_uuid,
-    COALESCE(pm.company_name, cw.company_uuid) AS company_name,
+    COALESCE(mt.company_name, cw.company_uuid) AS company_name,
     cw.work_score,
     cw.keiei_score,
     cw.total_score,
@@ -302,11 +297,13 @@ SELECT
         WHEN cw.total_score >= 3 THEN 'normal'
         ELSE                          'bad'
     END AS usage_freq,
-    COALESCE(pm.integration_tier, 'passive') AS integration_tier
+    COALESCE(mt.integration_tier, 'passive') AS integration_tier
 FROM combined_w cw
-LEFT JOIN prev_month_tier pm
-    ON  cw.company_uuid = pm.company_uuid
-    AND STRFTIME(DATE_TRUNC('month', cw.week_start), '%Y-%m') = pm.apply_month
+LEFT JOIN month_tier mt
+    ON  cw.company_uuid = mt.company_uuid
+    AND STRFTIME(
+        DATE_TRUNC('month', cw.week_start + INTERVAL '6 days'), '%Y-%m'
+    ) = mt.apply_month
 ORDER BY cw.week_start, cw.company_uuid
 """
 
@@ -318,8 +315,8 @@ def main() -> None:
     conn = db.load()
 
     all_months: list[str] = conn.sql(
-        "SELECT DISTINCT usage_month FROM feature_health ORDER BY usage_month"
-    ).df()["usage_month"].tolist()
+        "SELECT DISTINCT month FROM feature_health ORDER BY month"
+    ).df()["month"].tolist()
 
     today = date.today()
     current_ym = today.strftime("%Y-%m")
