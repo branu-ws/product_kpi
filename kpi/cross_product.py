@@ -215,15 +215,12 @@ combined AS (
         ON w.company_uuid = k.company_uuid AND w.week_start = k.week_start
     LEFT JOIN companies c ON w.company_uuid = c.company_uuid
 ),
--- integration_tier: 前月末の3ヶ月判定を引き継ぐ
-prev_month_tier AS (
+-- integration_tier: 当月の月次ティアと一致させる
+month_tier AS (
     SELECT
         company_uuid,
         integration_tier,
-        STRFTIME(
-            (STRPTIME(usage_month, '%Y-%m') + INTERVAL '1 month'),
-            '%Y-%m'
-        ) AS apply_month
+        usage_month AS apply_month
     FROM _cp_monthly_company
 )
 SELECT
@@ -238,13 +235,13 @@ SELECT
         WHEN cw.total_score >= {freq_normal} THEN 'normal'
         ELSE                                      'bad'
     END AS usage_freq,
-    COALESCE(pm.integration_tier, 'passive') AS integration_tier
+    COALESCE(mt.integration_tier, 'passive') AS integration_tier
 FROM combined cw
-LEFT JOIN prev_month_tier pm
-    ON  cw.company_uuid = pm.company_uuid
+LEFT JOIN month_tier mt
+    ON  cw.company_uuid = mt.company_uuid
     AND STRFTIME(
         DATE_TRUNC('month', cw.week_start + INTERVAL '6 days'), '%Y-%m'
-    ) = pm.apply_month
+    ) = mt.apply_month
 ORDER BY cw.week_start, cw.company_uuid
 """
 

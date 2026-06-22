@@ -159,14 +159,11 @@ combined AS (
     FROM work_scores ws
     LEFT JOIN companies c ON ws.company_uuid = c.company_uuid
 ),
-prev_month_tier AS (
+month_tier AS (
     SELECT
         company_uuid,
         diversity_tier,
-        STRFTIME(
-            (STRPTIME(usage_month, '%Y-%m') + INTERVAL '1 month'),
-            '%Y-%m'
-        ) AS apply_month
+        usage_month AS apply_month
     FROM _sp_work_monthly
 )
 SELECT
@@ -179,13 +176,13 @@ SELECT
         WHEN cw.feature_score >= {freq_normal} THEN 'normal'
         ELSE                                        'bad'
     END AS usage_freq,
-    COALESCE(pm.diversity_tier, 'passive') AS diversity_tier
+    COALESCE(mt.diversity_tier, 'passive') AS diversity_tier
 FROM combined cw
-LEFT JOIN prev_month_tier pm
-    ON  cw.company_uuid = pm.company_uuid
+LEFT JOIN month_tier mt
+    ON  cw.company_uuid = mt.company_uuid
     AND STRFTIME(
         DATE_TRUNC('month', cw.week_start + INTERVAL '6 days'), '%Y-%m'
-    ) = pm.apply_month
+    ) = mt.apply_month
 ORDER BY cw.week_start, cw.company_uuid
 """
 
@@ -312,14 +309,11 @@ combined AS (
     FROM keiei_scores ks
     LEFT JOIN companies c ON ks.company_uuid = c.company_uuid
 ),
-prev_month_tier AS (
+month_tier AS (
     SELECT
         company_uuid,
         diversity_tier,
-        STRFTIME(
-            (STRPTIME(usage_month, '%Y-%m') + INTERVAL '1 month'),
-            '%Y-%m'
-        ) AS apply_month
+        usage_month AS apply_month
     FROM _sp_keiei_monthly
 )
 SELECT
@@ -332,13 +326,13 @@ SELECT
         WHEN cw.feature_score >= {freq_normal} THEN 'normal'
         ELSE                                        'bad'
     END AS usage_freq,
-    COALESCE(pm.diversity_tier, 'passive') AS diversity_tier
+    COALESCE(mt.diversity_tier, 'passive') AS diversity_tier
 FROM combined cw
-LEFT JOIN prev_month_tier pm
-    ON  cw.company_uuid = pm.company_uuid
+LEFT JOIN month_tier mt
+    ON  cw.company_uuid = mt.company_uuid
     AND STRFTIME(
         DATE_TRUNC('month', cw.week_start + INTERVAL '6 days'), '%Y-%m'
-    ) = pm.apply_month
+    ) = mt.apply_month
 ORDER BY cw.week_start, cw.company_uuid
 """
 
