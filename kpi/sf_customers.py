@@ -4,8 +4,14 @@
   1. SF から Plus active アカウントを全件取得
   2. CAREECON_CID__c が設定済み -> そのまま company_uuid として採用
   3. CID 未設定 -> DS1 (careecon_db) の companies テーブルと
-     社名 + 住所 (都道府県・市区) で突合して company_uuid を補填
+     社名 + 住所 (都道府県・市区前方一致) で突合して company_uuid を補填
   4. company_uuid 列のみを持つ DataFrame を返す
+
+マッチング戦略:
+  - 社名は法人格 (株式会社など) とスペースを除去して正規化
+  - 市区は SF の BillingCity と DS1 の city で前方一致
+    例: SF "朝霞市" vs DS1 "朝霞市宮戸" -> 一致
+  - 複数候補がある場合は最初の UUID を採用 (take first)
 """
 
 from __future__ import annotations
@@ -48,7 +54,6 @@ FROM `companies`
 WHERE `deleted_at` IS NULL
 """
 
-
 _LEGAL_SUFFIXES = re.compile(
     r"株式会社|有限会社|合同会社|合資会社|一般社団法人|特定非営利活動法人"
 )
@@ -58,6 +63,45 @@ def _normalize(s: str) -> str:
     s = re.sub(r"[\s　]", "", s)
     s = _LEGAL_SUFFIXES.sub("", s)
     return s.lower()
+
+
+def _city_prefix_match(sf_city: str, ds1_city: str) -> bool:
+    """SF の BillingCity と DS1 の city を前方一致で比較する。
+
+    DS1 の city は「朝霞市宮戸」のように市区名+町名まで含むことがある。
+    SF の BillingCity は「朝霞市」止まりのことが多いため、
+    どちらかがもう一方の先頭に一致すれば同一市区とみなす。
+    """
+    a, b = sf_city.strip(), ds1_city.strip()
+    return bool(a) and bool(b) and (a.startswith(b) or b.startswith(a))
+
+
+def _match_step(
+    no_cid: pd.DataFrame,
+    ref: pd.DataFrame,
+    use_pref: bool,
+    use_city: bool,
+) -> dict[str, str]:
+    """name_norm [+ pref [+ city前方一致]] で突合して {name_norm: cas_cid} を返す。
+
+    複数候補がある場合は最初の UUID を採用する。
+    """
+    result: dict[str, str] = {}
+    for _, sf_row in no_cid.iterrows():
+        name = sf_row["name_norm"]
+        cands = ref[ref["name_norm"] == name]
+        if use_pref:
+            cands = cands[cands["pref"] == sf_row["pref"]]
+        if use_city:
+            sf_city = sf_row["city_norm"]
+            cands = cands[
+                cands["city_norm"].apply(
+                    lambda c, sf=sf_city: _city_prefix_match(sf, c)
+                )
+            ]
+        if not cands.empty:
+            result[name] = cands["cas_cid"].iloc[0]
+    return result
 
 
 def fetch(client: httpx.Client) -> pd.DataFrame:
@@ -80,32 +124,26 @@ def fetch(client: httpx.Client) -> pd.DataFrame:
     ds1["pref"]      = ds1["prefecture_id"].map(_PREF_MAP).fillna("")
     ds1["city_norm"] = ds1["city"].str.strip()
     ds1["name_norm"] = ds1["name"].apply(_normalize)
-
-    # Step 3: 名前 + 住所で段階的突合
-    no_cid["name_norm"] = no_cid["Name"].apply(_normalize)
-    no_cid["pref"]      = no_cid["BillingState"].str.strip()
-    no_cid["city_norm"] = no_cid["BillingCity"].str.strip()
-
     ref = ds1[["cid", "name_norm", "pref", "city_norm"]].rename(
         columns={"cid": "cas_cid"}
     )
 
-    matched: dict[str, str] = {}  # name_norm → cas_cid
+    # Step 3: 名前 + 住所で段階的突合 (精度順、高いものから)
+    no_cid["name_norm"] = no_cid["Name"].apply(_normalize)
+    no_cid["pref"]      = no_cid["BillingState"].str.strip()
+    no_cid["city_norm"] = no_cid["BillingCity"].str.strip()
 
-    for on_cols in [
-        ["name_norm", "pref", "city_norm"],
-        ["name_norm", "pref"],
-        ["name_norm"],
+    matched: dict[str, str] = {}
+
+    for use_pref, use_city in [
+        (True,  True),   # 名前 + 都道府県 + 市区前方一致
+        (True,  False),  # 名前 + 都道府県
+        (False, False),  # 名前のみ
     ]:
         rem = no_cid[~no_cid["name_norm"].isin(matched)]
         if rem.empty:
             break
-        sub_ref = ref[list({*on_cols, "cas_cid", "name_norm"})].drop_duplicates()
-        m = rem.merge(sub_ref, on=on_cols, how="inner")
-        cnt = m.groupby("name_norm")["cas_cid"].nunique()
-        uniq = m[m["name_norm"].isin(cnt[cnt == 1].index)].drop_duplicates("name_norm")
-        for _, row in uniq.iterrows():
-            matched[row["name_norm"]] = row["cas_cid"]
+        matched.update(_match_step(rem, ref, use_pref, use_city))
 
     all_uuids = sorted(confirmed | set(matched.values()))
     return pd.DataFrame({"company_uuid": all_uuids})
