@@ -21,6 +21,7 @@ from kpi import (
     feature_health,
     keiei_user_history,
     notion_sync,
+    sf_customers,
     single_product,
     users,
     work_process_id_generator,
@@ -56,6 +57,7 @@ def update_duckdb() -> None:
             ("contracts                ", lambda: contracts.fetch(client)),
             ("users                    ", lambda: users.fetch(client)),
             ("keiei_user_history       ", lambda: keiei_user_history.fetch(client)),
+            ("sf_customers             ", lambda: sf_customers.fetch(client)),
         ]
         fetched: dict[str, Any] = {}
         with tqdm(fetch_tasks, bar_format=_bar_fmt) as pbar:
@@ -69,6 +71,7 @@ def update_duckdb() -> None:
     contracts_df = fetched["contracts"]
     users_df = fetched["users"]
     keiei_history_df = fetched["keiei_user_history"]
+    sf_customers_df = fetched["sf_customers"]
 
     conn = duckdb.connect()
     conn.register("work_user_history", history_df)
@@ -77,6 +80,7 @@ def update_duckdb() -> None:
     conn.register("contracts", contracts_df)
     conn.register("users", users_df)
     conn.register("keiei_user_history", keiei_history_df)
+    conn.register("sf_customers", sf_customers_df)
 
     with tqdm(total=3, bar_format=_bar_fmt) as pbar:
         pbar.set_description("KPI計算  customer_lifecycle  ")
@@ -140,6 +144,7 @@ def update_duckdb() -> None:
         contracts=contracts_df,
         users=users_df,
         keiei_user_history=keiei_history_df,
+        sf_customers=sf_customers_df,
         customer_lifecycle=lifecycle_df,
         feature_health=health_df,
         keiei_feature_health=keiei_health_df,

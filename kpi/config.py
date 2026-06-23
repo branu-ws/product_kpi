@@ -32,6 +32,7 @@ class RedashDataSources(BaseModel, frozen=True):
     db: int
     cas: int
     work: int
+    sf: int
 
 
 class RedashSavedQueries(BaseModel, frozen=True):

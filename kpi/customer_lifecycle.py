@@ -19,8 +19,16 @@ def build(conn: duckdb.DuckDBPyConnection) -> pd.DataFrame:
     """customer_lifecycle DataFrame を生成する。
 
     conn に work_user_history / contracts / companies が登録済みであること。
+    sf_customers が登録されている場合はそのホワイトリストで絞り込む。
     """
-    result: pd.DataFrame = conn.sql("""
+    tables = {r[0] for r in conn.execute("SHOW TABLES").fetchall()}
+    sf_join = (
+        "INNER JOIN sf_customers AS sf ON con.company_uuid = sf.company_uuid"
+        if "sf_customers" in tables
+        else ""
+    )
+
+    result: pd.DataFrame = conn.sql(f"""
         WITH all_months AS (
             SELECT DISTINCT strftime(content_date, '%Y-%m') AS month
             FROM work_user_history
@@ -53,7 +61,9 @@ def build(conn: duckdb.DuckDBPyConnection) -> pd.DataFrame:
                 ON  strftime(con.start_date, '%Y-%m') <= m.month
                 AND (con.end_date IS NULL
                      OR strftime(con.end_date, '%Y-%m') >= m.month)
+                AND con.status = 'active'
             INNER JOIN companies AS comp ON con.company_uuid = comp.company_uuid
+            {sf_join}
             INNER JOIN first_contract AS fc
                 ON  con.company_uuid = fc.company_uuid
                 AND con.plan_type    = fc.plan_type
@@ -78,6 +88,7 @@ def build(conn: duckdb.DuckDBPyConnection) -> pd.DataFrame:
                 ON  strftime(con.end_date, '%Y-%m') < m.month
                 AND con.status = 'finished'
             INNER JOIN companies AS comp ON con.company_uuid = comp.company_uuid
+            {sf_join}
             WHERE NOT EXISTS (
                 SELECT 1 FROM active AS a
                 WHERE a.company_uuid = con.company_uuid

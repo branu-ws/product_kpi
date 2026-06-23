@@ -36,6 +36,7 @@ redash:
     db:   1   # careecon_db (MySQL) — companies マスタ
     cas:  2   # careecon_cas (MySQL) — contracts, items, accounts
     work: 7   # careecon_work (MySQL) — 施工管理・経営管理 利用履歴
+    sf:   11  # Salesforce — Account, Product__c など
   saved_queries:
     work_user_history: 914   # Redash 保存クエリ (施工管理利用履歴)
 
