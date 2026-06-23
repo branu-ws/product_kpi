@@ -14,6 +14,7 @@ from tqdm import tqdm
 
 from kpi import (
     companies,
+    company_loyalty,
     contracts,
     cross_product,
     customer_lifecycle,
@@ -98,7 +99,7 @@ def update_duckdb() -> None:
         conn.register("keiei_feature_health", keiei_health_df)
         pbar.update(1)
 
-    with tqdm(total=3, bar_format=_bar_fmt) as pbar:
+    with tqdm(total=5, bar_format=_bar_fmt) as pbar:
         pbar.set_description("KPI計算  cross_product           ")
         cp_monthly_df, cp_weekly_df = cross_product.build(conn)
         conn.register("cross_product_monthly_company", cp_monthly_df)
@@ -115,6 +116,16 @@ def update_duckdb() -> None:
         sp_keiei_monthly_df, sp_keiei_weekly_df = single_product.build_keiei(conn)
         conn.register("keiei_monthly_company", sp_keiei_monthly_df)
         conn.register("keiei_company_weekly", sp_keiei_weekly_df)
+        pbar.update(1)
+
+        pbar.set_description("KPI計算  company_loyalty         ")
+        loyalty_df = company_loyalty.build(conn)
+        conn.register("company_loyalty", loyalty_df)
+        pbar.update(1)
+
+        pbar.set_description("KPI計算  keiei_company_loyalty   ")
+        keiei_loyalty_df = company_loyalty.build_keiei(conn)
+        conn.register("keiei_company_loyalty", keiei_loyalty_df)
         pbar.update(1)
 
     views: dict[str, dict[str, Any]] = defaultdict(dict)
@@ -154,6 +165,8 @@ def update_duckdb() -> None:
         work_company_weekly=sp_work_weekly_df,
         keiei_monthly_company=sp_keiei_monthly_df,
         keiei_company_weekly=sp_keiei_weekly_df,
+        company_loyalty=loyalty_df,
+        keiei_company_loyalty=keiei_loyalty_df,
     )
 
     if views:
