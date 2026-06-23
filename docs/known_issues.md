@@ -1,83 +1,99 @@
 # 既知の運用課題
 
-## 課題1: アクティブ企業数の過大計上（CAS 契約データの混入）
+## 現状の顧客母集団（2026-06 時点）
+
+| 指標 | 数値 | 備考 |
+|------|------|------|
+| SF Plus アクティブ（真のソース・オブ・トゥルース） | 270社 | `CAREECON_Plus__c=true AND CAREECON_Plus_Cancel__c=false` |
+| sf_customers ホワイトリスト（kpi-update ごとに自動更新） | 268社 | CID補填後。EXCEL管理 266社に近傍 |
+| KPI で観測可能（feature_health 2026-06） | 197社 | 下記の理由で 71社が欠落 |
+| **欠落内訳① 経営管理のみで施工管理未使用** | 35社 | keiei_feature_health には存在する |
+| **欠落内訳② UUID 不一致（下記課題3・4）** | 26社 | 誤マッチまたは CAS 契約未反映 |
+
+---
+
+## 課題1: CAS 契約データのノイズ（解決済み）
 
 **現象**  
-KPI の月次・週次レポートで plus active 企業が **836社**（2026-06時点）と表示されるが、実態は **266社前後**（実運用チーム管理リスト）。
+CAS の `contracts` には free trial・未導入・名義登録のみの企業が混入しており、
+`status = 'active'` だけでフィルタすると **953社**（実態は約 266社）になる。
+
+**対応（実施済み）**  
+Salesforce `CAREECON_Plus__c = true AND CAREECON_Plus_Cancel__c = false` を
+ソース・オブ・トゥルースとした sf_customers ホワイトリストを導入。
+`customer_lifecycle.py` が sf_customers に INNER JOIN することで母集団を正規化済み。
+
+---
+
+## 課題2: 経営管理のみの Plus 顧客が施工管理 KPI に出てこない（構造的制約）
+
+**現象**  
+sf_customers 268社のうち **35社は DS7（careecon_work）に未登録**。
+これらは施工管理を使わず経営管理のみを利用している顧客。
+`customer_lifecycle` が `work_user_history` ベースで構築されているため、観測できない。
+
+**影響**  
+- 施工管理 KPI（feature_health / company_loyalty）からは原理的に見えない
+- 経営管理 KPI（keiei_feature_health）には出てくる
+- クロスプロダクト KPI でも欠落（work_user_history がないため）
+
+**今後の対応**  
+`customer_lifecycle` の `all_months` を `work_user_history UNION keiei_user_history`
+に変更することで、経営管理のみの顧客も含めた統合ライフサイクルが構築できる（対応予定）。
+
+---
+
+## 課題3: 名前マッチングによる UUID 誤マッチ（18社）
+
+**現象**  
+SF の `CAREECON_CID__c` が未設定の会社を DS1 の社名+住所で UUID 補填する際、
+DS7 にのみ存在する（CAS accounts に存在しない）別会社の UUID を誤って取得してしまう。
 
 **根本原因**  
-CAS の `contracts` テーブルには free trial・未導入・名義登録のみの企業が大量に含まれており、`status = 'active'` かつ `end_date` が未来でも、実際に製品を使っていない会社が 600社以上混入している。  
-Salesforce の `CAREECON_Plus__c = true AND CAREECON_Plus_Cancel__c = false` が真のアクティブ Plus 顧客のソース・オブ・トゥルースであり、CAS の契約数とは乖離がある。
+DS1（careecon_db）の `companies` テーブルには CAS と紐付かない会社も含まれている。
+同名・同都道府県の会社が複数あった場合 take-first で選択するが、
+選んだ UUID が CAS に存在しなければ契約情報が紐付かず customer_lifecycle に出てこない。
 
-**暫定対応**  
-- `kpi/customer_lifecycle.py` の `active_ranked` CTE に `AND con.status = 'active'` を追加済み（finished 契約の混入を防ぐ）
-- 実運用チームから提供された 266社リスト（`docs/benchmark_custormer.csv`）の突合により、203社の UUID を確定済み
+**対応（実施済み）**  
+`sf_customers.py` の DS1 参照を「CAS accounts に存在する UUID のみ」に絞り込むよう修正。
+これで DS7 専用会社への誤マッチを防止。
 
-**恒久対応（未実施）**  
-Salesforce の `Account.CAREECON_CID__c` をキーに、`CAREECON_Plus__c = true AND CAREECON_Plus_Cancel__c = false` のホワイトリストを取得し、`contracts` または `customer_lifecycle` のフィルタに使う仕組みが必要。
-
----
-
-## 課題2: Salesforce の CAREECON_CID__c 未設定（130社がKPIから消える）
-
-**現象**  
-Salesforce でアクティブ Plus と認識されている企業 270社のうち、**130社は `CAREECON_CID__c`（施工管理用CID）が未設定**。  
-CID がないと CAS の `accounts.cid` → DS7 の `companies.cid` への UUID 解決ができず、KPI に一切出てこない。
-
-**影響**  
-実態の約半数の顧客が KPI の集計対象外になっている。
-
-**対応依頼先**  
-Salesforce 担当者に、受注済み Plus 顧客の `Account.CAREECON_CID__c` 入力を依頼する。  
-優先度の高い 130社：`CAREECON_Plus__c = true AND CAREECON_Plus_Cancel__c = false AND CAREECON_CID__c = null`（2026-06-22時点）
+**残存リスク**  
+CAS accounts に存在するが active plus 契約がない UUID を take-first で選んでしまう可能性は残る。
+根本解決は SF チームに `CAREECON_CID__c` を正しく入力してもらうこと。
 
 ---
 
-## 課題3: Salesforce の CAREECON_CID__c が「ID」として機能していない
+## 課題4: SF と CAS の契約情報乖離（8社）
 
 **現象**  
-`CAREECON_CID__c`（施工管理用CID）という名のフィールドが、アクティブ Plus 顧客 270社のうち **130社（約半数）で空欄**。ID という名前なのに識別子として成立していない。
+UUID は正しく CAS accounts に存在するが、CAS の `contracts` に
+active な plus 契約レコードが入っていない会社が **8社**ある。
+SF は Plus アクティブと認識しているが CAS 側が追いついていない。
 
 **推定原因**  
-運用フローが分断されている可能性：
-1. 営業が受注時に Salesforce で `CAREECON_Plus__c = true` を立てる
-2. 製品の初期設定完了後に担当者が CID を別途 Salesforce に転記する
-
-この転記ステップが **義務化・自動化されておらず**、130社分が入力漏れのまま放置されている。
+- 営業が SF で `CAREECON_Plus__c = true` を立てた後、CAS の contracts が更新されていない
+- 契約書の締結タイミングと CAS への反映タイミングのズレ
 
 **影響**  
-- CID がない = パイプラインが UUID を解決できない = KPI に企業が一切出てこない
-- 実態として初期設定済みで使っている企業が含まれる可能性があり、その場合 KPI の欠損が深刻
+これら 8社は customer_lifecycle に出てこず、KPI で観測されない。
 
 **対応依頼先**  
-- **短期:** 130社の CID を手動で Salesforce に入力（CS・実装担当）
-- **中長期:** 初期設定完了フロー内で CID を Salesforce に自動登録する仕組みを構築
+CS・実装担当に CAS 契約データの入力・修正を依頼。
+8社のリストは sf_customers にあるが contracts に存在しない UUID で確認可能。
 
 ---
 
-## 課題4: DS7 未登録の Plus 顧客（13社が原理的に追えない）
+## 課題5: SF の CAREECON_CID__c 未設定（約 130社）
 
 **現象**  
-実運用チームの 266社リストのうち **13社は DS7（careecon_work）の `companies` テーブルに存在しない**。  
-コア名称での部分一致検索でもヒットなし。
+Salesforce Plus アクティブ 270社のうち **約 130社は `CAREECON_CID__c` が空欄**。
+CID がないと社名+住所マッチングで補填を試みるが、マッチング精度には限界がある。
 
-**推定原因**  
-- 契約したが製品（careecon_work）を一度も起動していない
-- DS7 とは別の経路・環境で運用されている
+**対応（実施済み）**  
+社名 + 都道府県 + 市区前方一致の3段階マッチングで約 130社のうち大半を補填済み。
+CAS accounts に存在する UUID のみを候補にすることで誤マッチも低減。
 
-**対応**  
-このパイプラインからは原理的に観測不可能。Salesforce の CID 整備（課題2）で CID が付与されれば、製品起動時に自動的に追跡可能になる見込み。現時点では許容誤差として管理。
-
----
-
-## 参考: 調査で確定した数字（2026-06-22 時点）
-
-| 指標 | 数値 |
-|------|------|
-| 実運用チーム管理リスト（benchmark） | 266社（誤差±5） |
-| Salesforce CAREECON_Plus__c = true（Cancel=false） | 270社 |
-| &emsp;└ CAREECON_CID__c 設定済み | 140社 |
-| &emsp;└ CAREECON_CID__c 未設定 | 130社 |
-| benchmark → UUID 確定済み（名前+plus active契約） | 203社 |
-| CAS contracts active plus（現状の KPI 母集団） | 836社（fix B後） |
-| DS7 未登録（KPI から原理的に見えない） | 13社 |
+**対応依頼先（推奨）**  
+SF 担当者に受注済み Plus 顧客の `CAREECON_CID__c` 入力を依頼。
+自動補填の誤りがゼロにならないため、手動入力が最も確実。

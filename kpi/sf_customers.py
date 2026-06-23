@@ -54,6 +54,8 @@ FROM `companies`
 WHERE `deleted_at` IS NULL
 """
 
+_CAS_ACCOUNTS_SQL = "SELECT cid FROM accounts"
+
 _LEGAL_SUFFIXES = re.compile(
     r"株式会社|有限会社|合同会社|合資会社|一般社団法人|特定非営利活動法人"
 )
@@ -118,14 +120,23 @@ def fetch(client: httpx.Client) -> pd.DataFrame:
         return pd.DataFrame({"company_uuid": sorted(confirmed)})
 
     # Step 2: DS1 companies (住所マッチング用)
+    # CAS accounts に存在する UUID のみを候補にすることで
+    # DS7 にだけ登録されている別会社への誤マッチを防ぐ
+    cas_uuids = {
+        r["cid"]
+        for r in redash.run_adhoc_query(
+            client, REDASH.data_sources.cas, _CAS_ACCOUNTS_SQL
+        )
+    }
     ds1 = pd.DataFrame(
         redash.run_adhoc_query(client, REDASH.data_sources.db, _DS1_SQL)
     ).fillna("")
     ds1["pref"]      = ds1["prefecture_id"].map(_PREF_MAP).fillna("")
     ds1["city_norm"] = ds1["city"].str.strip()
     ds1["name_norm"] = ds1["name"].apply(_normalize)
-    ref = ds1[["cid", "name_norm", "pref", "city_norm"]].rename(
-        columns={"cid": "cas_cid"}
+    ref = (
+        ds1[ds1["cid"].isin(cas_uuids)][["cid", "name_norm", "pref", "city_norm"]]
+        .rename(columns={"cid": "cas_cid"})
     )
 
     # Step 3: 名前 + 住所で段階的突合 (精度順、高いものから)
