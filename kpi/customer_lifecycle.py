@@ -27,11 +27,20 @@ def build(conn: duckdb.DuckDBPyConnection) -> pd.DataFrame:
         if "sf_customers" in tables
         else ""
     )
+    keiei_months_union = (
+        """UNION
+        SELECT DISTINCT strftime(content_date, '%Y-%m') AS month
+        FROM keiei_user_history
+        WHERE content_date IS NOT NULL"""
+        if "keiei_user_history" in tables
+        else ""
+    )
 
     result: pd.DataFrame = conn.sql(f"""
         WITH all_months AS (
             SELECT DISTINCT strftime(content_date, '%Y-%m') AS month
             FROM work_user_history
+            {keiei_months_union}
         ),
         first_contract AS (
             -- Plus→Plus更新はリセットしない、Mini→Plusはリセットする

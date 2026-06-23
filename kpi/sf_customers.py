@@ -107,17 +107,25 @@ def _match_step(
 
 
 def fetch(client: httpx.Client) -> pd.DataFrame:
-    """Plus アクティブ顧客の company_uuid 一覧を返す DataFrame。列: company_uuid"""
+    """Plus アクティブ顧客を返す DataFrame。列: company_uuid, sf_company_name"""
 
     # Step 1: SF Plus active 全件
     sf_rows = redash.run_adhoc_query(client, REDASH.data_sources.sf, _SF_SOQL)
     sf = pd.DataFrame(sf_rows).fillna("")
 
-    confirmed = set(sf.loc[sf["CAREECON_CID__c"] != "", "CAREECON_CID__c"])
+    # SF 社名マップ (CID設定済み)
+    sf_names: dict[str, str] = dict(
+        zip(sf.loc[sf["CAREECON_CID__c"] != "", "CAREECON_CID__c"],
+            sf.loc[sf["CAREECON_CID__c"] != "", "Name"], strict=True)
+    )
+    confirmed = set(sf_names.keys())
     no_cid    = sf[sf["CAREECON_CID__c"] == ""].copy()
 
     if no_cid.empty:
-        return pd.DataFrame({"company_uuid": sorted(confirmed)})
+        return pd.DataFrame({
+            "company_uuid":    sorted(confirmed),
+            "sf_company_name": [sf_names[u] for u in sorted(confirmed)],
+        })
 
     # Step 2: DS1 companies (住所マッチング用)
     # CAS accounts に存在する UUID のみを候補にすることで
@@ -143,8 +151,13 @@ def fetch(client: httpx.Client) -> pd.DataFrame:
     no_cid["name_norm"] = no_cid["Name"].apply(_normalize)
     no_cid["pref"]      = no_cid["BillingState"].str.strip()
     no_cid["city_norm"] = no_cid["BillingCity"].str.strip()
+    # name_norm → SF表示名 マップ (マッチング後の社名復元用)
+    sf_name_by_norm: dict[str, str] = dict(
+        zip(no_cid["name_norm"], no_cid["Name"], strict=True)
+    )
 
-    matched: dict[str, str] = {}
+    matched: dict[str, str] = {}           # name_norm → cas_cid
+    matched_sf_name: dict[str, str] = {}   # cas_cid  → SF表示名
 
     for use_pref, use_city in [
         (True,  True),   # 名前 + 都道府県 + 市区前方一致
@@ -154,7 +167,13 @@ def fetch(client: httpx.Client) -> pd.DataFrame:
         rem = no_cid[~no_cid["name_norm"].isin(matched)]
         if rem.empty:
             break
-        matched.update(_match_step(rem, ref, use_pref, use_city))
+        step = _match_step(rem, ref, use_pref, use_city)
+        matched.update(step)
+        for norm, uuid in step.items():
+            matched_sf_name[uuid] = sf_name_by_norm.get(norm, "")
 
     all_uuids = sorted(confirmed | set(matched.values()))
-    return pd.DataFrame({"company_uuid": all_uuids})
+    all_names = [
+        sf_names.get(u) or matched_sf_name.get(u, "") for u in all_uuids
+    ]
+    return pd.DataFrame({"company_uuid": all_uuids, "sf_company_name": all_names})

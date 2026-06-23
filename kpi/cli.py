@@ -66,6 +66,8 @@ def update_duckdb() -> None:
                 pbar.set_description(f"Redash  {name}")
                 fetched[name.strip()] = fn()
 
+    import pandas as pd
+
     history_df = fetched["work_user_history"]
     projects_df = fetched["work_process_id_generator"]
     companies_df = fetched["companies"]
@@ -73,6 +75,16 @@ def update_duckdb() -> None:
     users_df = fetched["users"]
     keiei_history_df = fetched["keiei_user_history"]
     sf_customers_df = fetched["sf_customers"]
+
+    # DS1 にない会社 (keiei-only など) の社名を SF 名で補完
+    sf_names_df = sf_customers_df[["company_uuid", "sf_company_name"]].rename(
+        columns={"sf_company_name": "company_name"}
+    )
+    companies_df = (
+        pd.concat([companies_df, sf_names_df], ignore_index=True)
+        .drop_duplicates(subset="company_uuid", keep="first")
+        .reset_index(drop=True)
+    )
 
     conn = duckdb.connect()
     conn.register("work_user_history", history_df)
