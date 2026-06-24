@@ -15,16 +15,20 @@ import duckdb
 import pandas as pd
 
 
-def build(conn: duckdb.DuckDBPyConnection) -> pd.DataFrame:
+def build(
+    conn: duckdb.DuckDBPyConnection,
+    *,
+    sf_table: str = "sf_customers",
+) -> pd.DataFrame:
     """customer_lifecycle DataFrame を生成する。
 
     conn に work_user_history / contracts / companies が登録済みであること。
-    sf_customers が登録されている場合はそのホワイトリストで絞り込む。
+    sf_table が登録されている場合はそのホワイトリストで絞り込む。
     """
     tables = {r[0] for r in conn.execute("SHOW TABLES").fetchall()}
     sf_join = (
-        "INNER JOIN sf_customers AS sf ON con.company_uuid = sf.company_uuid"
-        if "sf_customers" in tables
+        f"INNER JOIN {sf_table} AS sf ON con.company_uuid = sf.company_uuid"
+        if sf_table in tables
         else ""
     )
     keiei_months_union = (
@@ -134,3 +138,11 @@ def build(conn: duckdb.DuckDBPyConnection) -> pd.DataFrame:
     """).df()
 
     return result
+
+
+def build_mini(conn: duckdb.DuckDBPyConnection) -> pd.DataFrame:
+    """Mini 顧客の customer_lifecycle DataFrame を生成する。
+
+    mini_sf_customers テーブルをホワイトリストとして使用する。
+    """
+    return build(conn, sf_table="mini_sf_customers")

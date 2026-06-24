@@ -59,6 +59,7 @@ def update_duckdb() -> None:
             ("users                    ", lambda: users.fetch(client)),
             ("keiei_user_history       ", lambda: keiei_user_history.fetch(client)),
             ("sf_customers             ", lambda: sf_customers.fetch(client)),
+            ("mini_sf_customers        ", lambda: sf_customers.fetch_mini(client)),
         ]
         fetched: dict[str, Any] = {}
         with tqdm(fetch_tasks, bar_format=_bar_fmt) as pbar:
@@ -75,6 +76,7 @@ def update_duckdb() -> None:
     users_df = fetched["users"]
     keiei_history_df = fetched["keiei_user_history"]
     sf_customers_df = fetched["sf_customers"]
+    mini_sf_customers_df = fetched["mini_sf_customers"]
 
     # DS1 にない会社 (keiei-only など) の社名を SF 名で補完
     sf_names_df = sf_customers_df[["company_uuid", "sf_company_name"]].rename(
@@ -94,24 +96,35 @@ def update_duckdb() -> None:
     conn.register("users", users_df)
     conn.register("keiei_user_history", keiei_history_df)
     conn.register("sf_customers", sf_customers_df)
+    conn.register("mini_sf_customers", mini_sf_customers_df)
 
-    with tqdm(total=3, bar_format=_bar_fmt) as pbar:
-        pbar.set_description("KPI計算  customer_lifecycle  ")
+    with tqdm(total=5, bar_format=_bar_fmt) as pbar:
+        pbar.set_description("KPI計算  customer_lifecycle      ")
         lifecycle_df = customer_lifecycle.build(conn)
         conn.register("customer_lifecycle", lifecycle_df)
         pbar.update(1)
 
-        pbar.set_description("KPI計算  feature_health      ")
+        pbar.set_description("KPI計算  feature_health          ")
         health_df = feature_health.build(conn)
         conn.register("feature_health", health_df)
         pbar.update(1)
 
-        pbar.set_description("KPI計算  keiei_feature_health")
+        pbar.set_description("KPI計算  keiei_feature_health    ")
         keiei_health_df = feature_health.build_keiei(conn)
         conn.register("keiei_feature_health", keiei_health_df)
         pbar.update(1)
 
-    with tqdm(total=5, bar_format=_bar_fmt) as pbar:
+        pbar.set_description("KPI計算  mini_customer_lifecycle ")
+        mini_lifecycle_df = customer_lifecycle.build_mini(conn)
+        conn.register("mini_customer_lifecycle", mini_lifecycle_df)
+        pbar.update(1)
+
+        pbar.set_description("KPI計算  mini_feature_health     ")
+        mini_health_df = feature_health.build_work_mini(conn)
+        conn.register("mini_feature_health", mini_health_df)
+        pbar.update(1)
+
+    with tqdm(total=7, bar_format=_bar_fmt) as pbar:
         pbar.set_description("KPI計算  cross_product           ")
         cp_monthly_df, cp_weekly_df = cross_product.build(conn)
         conn.register("cross_product_monthly_company", cp_monthly_df)
@@ -130,6 +143,12 @@ def update_duckdb() -> None:
         conn.register("keiei_company_weekly", sp_keiei_weekly_df)
         pbar.update(1)
 
+        pbar.set_description("KPI計算  mini_work_single_product")
+        mini_work_monthly_df, mini_work_weekly_df = single_product.build_work_mini(conn)
+        conn.register("mini_work_monthly_company", mini_work_monthly_df)
+        conn.register("mini_work_company_weekly", mini_work_weekly_df)
+        pbar.update(1)
+
         pbar.set_description("KPI計算  company_loyalty         ")
         loyalty_df = company_loyalty.build(conn)
         conn.register("company_loyalty", loyalty_df)
@@ -138,6 +157,11 @@ def update_duckdb() -> None:
         pbar.set_description("KPI計算  keiei_company_loyalty   ")
         keiei_loyalty_df = company_loyalty.build_keiei(conn)
         conn.register("keiei_company_loyalty", keiei_loyalty_df)
+        pbar.update(1)
+
+        pbar.set_description("KPI計算  mini_company_loyalty    ")
+        mini_loyalty_df = company_loyalty.build_mini(conn)
+        conn.register("mini_company_loyalty", mini_loyalty_df)
         pbar.update(1)
 
     views: dict[str, dict[str, Any]] = defaultdict(dict)
@@ -168,17 +192,23 @@ def update_duckdb() -> None:
         users=users_df,
         keiei_user_history=keiei_history_df,
         sf_customers=sf_customers_df,
+        mini_sf_customers=mini_sf_customers_df,
         customer_lifecycle=lifecycle_df,
         feature_health=health_df,
         keiei_feature_health=keiei_health_df,
+        mini_customer_lifecycle=mini_lifecycle_df,
+        mini_feature_health=mini_health_df,
         cross_product_monthly_company=cp_monthly_df,
         cross_product_company_weekly=cp_weekly_df,
         work_monthly_company=sp_work_monthly_df,
         work_company_weekly=sp_work_weekly_df,
         keiei_monthly_company=sp_keiei_monthly_df,
         keiei_company_weekly=sp_keiei_weekly_df,
+        mini_work_monthly_company=mini_work_monthly_df,
+        mini_work_company_weekly=mini_work_weekly_df,
         company_loyalty=loyalty_df,
         keiei_company_loyalty=keiei_loyalty_df,
+        mini_company_loyalty=mini_loyalty_df,
     )
 
     if views:

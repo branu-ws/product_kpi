@@ -6,13 +6,11 @@ import pandas as pd
 from kpi.config import ACTIVE_PLAN_TYPES, FEATURE_THRESHOLDS, KEIEI_FEATURE_THRESHOLDS
 
 
-def build(conn: duckdb.DuckDBPyConnection) -> pd.DataFrame:
-    """work_user_history 等からフィーチャーヘルス DataFrame を生成する。
-
-    大工程 + 小工程 は工程作成として合算する。
-    contracts テーブルで契約期間中かつ ACTIVE_PLAN_TYPES に含まれる企業のみ対象。
-    利用なしの企業 x 機能 x 月 は usage_count=0 (bad) として補完する。
-    """
+def _build_work(
+    conn: duckdb.DuckDBPyConnection,
+    lifecycle_table: str,
+    plan_filter: str,
+) -> pd.DataFrame:
     thresholds_df = pd.DataFrame(
         [
             {"feature": k, "good_min": v.good_min, "normal_min": v.normal_min}
@@ -20,8 +18,6 @@ def build(conn: duckdb.DuckDBPyConnection) -> pd.DataFrame:
         ]
     )
     conn.register("_thresholds", thresholds_df)
-
-    plan_filter = ", ".join(f"'{p}'" for p in ACTIVE_PLAN_TYPES)
 
     result: pd.DataFrame = conn.sql(f"""
         WITH monthly_usage AS (
@@ -47,8 +43,6 @@ def build(conn: duckdb.DuckDBPyConnection) -> pd.DataFrame:
             FROM work_user_history
         ),
         active_per_month AS (
-            -- ACTIVE_PLAN_TYPES に "mini" を追加すれば mini も含まれる
-            -- retired は除外、onboarding フラグは customer_lifecycle から取得
             SELECT DISTINCT
                 month,
                 company_uuid,
@@ -56,7 +50,7 @@ def build(conn: duckdb.DuckDBPyConnection) -> pd.DataFrame:
                 plan_type,
                 is_onboarding,
                 lifecycle_stage
-            FROM customer_lifecycle
+            FROM {lifecycle_table}
             WHERE plan_type IN ({plan_filter})
               AND lifecycle_stage != 'retired'
         ),
@@ -109,6 +103,21 @@ def build(conn: duckdb.DuckDBPyConnection) -> pd.DataFrame:
 
     conn.unregister("_thresholds")
     return result
+
+
+def build(conn: duckdb.DuckDBPyConnection) -> pd.DataFrame:
+    """work_user_history からフィーチャーヘルス DataFrame を生成する (Plus 顧客)。"""
+    plan_filter = ", ".join(f"'{p}'" for p in ACTIVE_PLAN_TYPES)
+    return _build_work(conn, "customer_lifecycle", plan_filter)
+
+
+def build_work_mini(conn: duckdb.DuckDBPyConnection) -> pd.DataFrame:
+    """work_user_history からフィーチャーヘルス DataFrame を生成する (Mini 顧客)。
+
+    mini_sf_customers に含まれる会社は CAS の plan_type が plus の場合もあるため
+    plus/mini 両方を対象にする。
+    """
+    return _build_work(conn, "mini_customer_lifecycle", "'plus', 'mini'")
 
 
 def build_keiei(conn: duckdb.DuckDBPyConnection) -> pd.DataFrame:

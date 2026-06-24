@@ -1,11 +1,11 @@
 kpi:
   feature_thresholds:
-    工程作成:       {good_min: 20, normal_min: 5}
-    出面:           {good_min: 10, normal_min: 3}
-    出来高:         {good_min: 10, normal_min: 3}
-    ホワイトボード: {good_min: 10, normal_min: 3}
-    日報:           {good_min: 10, normal_min: 3}
-    報告書:         {good_min: 10, normal_min: 3}
+    工程作成:       {good_min: 10, normal_min: 5}
+    出面:           {good_min: 10, normal_min: 5}
+    出来高:         {good_min: 10, normal_min: 5}
+    ホワイトボード: {good_min: 10, normal_min: 5}
+    日報:           {good_min: 10, normal_min: 5}
+    報告書:         {good_min: 10, normal_min: 5}
   keiei_feature_thresholds:
     案件ステータス更新: {good_min: 2, normal_min: 1}
     見積原価登録:       {good_min: 2, normal_min: 1}
@@ -22,8 +22,8 @@ kpi:
     fan_feature_min:       2   # 単一プロダクト fan: normal 以上の機能数の最小値
     proactive_feature_min: 1   # 単一プロダクト proactive: 同上
     xproduct_score_min:    1   # X-Product fan/proactive: 各プロダクトスコアの最小値
-    usage_freq_good:       5   # usage_freq good: feature_score の最小値
-    usage_freq_normal:     3   # usage_freq normal: 同上
+    usage_freq_good:       4   # usage_freq good: feature_score の最小値
+    usage_freq_normal:     2   # usage_freq normal: 同上
   plan_type_codes:
     business:        plus
     business_annual: plus
@@ -70,4 +70,9 @@ notion:
       sql: "collections/notion/keiei/single_product_matrix.sql"
       db_id: "3839cbb2313080708529c6be36d5f99f"
       ds_id: "3839cbb2-3130-807f-a256-000b3c4ab45b"
+      time_col: "combined"
+    - name: "mini_work_single_product_usage"
+      sql: "collections/notion/work_mini/single_product_matrix.sql"
+      db_id: "3889cbb2313080e788f1c96ffc7bdeda"
+      ds_id: "0499cbb2-3130-83d3-a23d-0724f995d6e8"
       time_col: "combined"

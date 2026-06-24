@@ -8,7 +8,8 @@
   4. company_uuid 列のみを持つ DataFrame を返す
 
 マッチング戦略:
-  - 社名は法人格 (株式会社など) とスペースを除去して正規化
+  - 社名は NFKC 正規化 (全角→半角) + 法人格 + 記号除去
+  - DS1 のマルチバリアント展開: ドメインサフィックス除去・担当者名括弧抽出
   - 市区は SF の BillingCity と DS1 の city で前方一致
     例: SF "朝霞市" vs DS1 "朝霞市宮戸" -> 一致
   - 複数候補がある場合は最初の UUID を採用 (take first)
@@ -17,6 +18,7 @@
 from __future__ import annotations
 
 import re
+import unicodedata
 
 import httpx
 import pandas as pd
@@ -48,6 +50,17 @@ WHERE CAREECON_Plus__c = true
   AND CAREECON_Plus_Cancel__c = false
 """
 
+_SF_MINI_SOQL = """
+SELECT
+    Name,
+    CAREECON_CID__c,
+    BillingState,
+    BillingCity
+FROM Account
+WHERE (CAREECON_mini__c = true OR new_CAREECON_mini__c = true)
+  AND ContractStatus__c NOT IN ('解約', '強制解約', '倒産', 'キャンセル')
+"""
+
 _DS1_SQL = """
 SELECT `cid`, `name`, `prefecture_id`, `city`
 FROM `companies`
@@ -56,15 +69,44 @@ WHERE `deleted_at` IS NULL
 
 _CAS_ACCOUNTS_SQL = "SELECT cid FROM accounts"
 
+# NFKC 後に残る法人格: 全角括弧は NFKC で ASCII に変換済み
 _LEGAL_SUFFIXES = re.compile(
-    r"株式会社|有限会社|合同会社|合資会社|一般社団法人|特定非営利活動法人"
+    r"株式会社|有限会社|合同会社|合資会社|一般社団法人|特定非営利活動法人|NPO法人|"
+    r"社団法人|財団法人|医療法人|学校法人|宗教法人|協同組合|農業協同組合|事業協同組合|"
+    r"\(株\)|\(有\)|\(合\)"
+)
+_DOMAIN_SUFFIX = re.compile(r"_[A-Za-z0-9\-]+\.[A-Za-z]{2,}$")
+# DS1 name の担当者名括弧: 全角と ASCII の両形式にマッチ
+_PAREN_CONTENT = re.compile(r"[（(]([^）)]+)[）)]")  # noqa: RUF001
+# NFKC 後に除去する記号 (全角括弧/スラッシュは NFKC で ASCII 化済み)
+_STRIP_CHARS = re.compile(
+    r"[\s\-\.·。、「」『』【】〔〕()/]"  # noqa: RUF001
 )
 
 
 def _normalize(s: str) -> str:
-    s = re.sub(r"[\s　]", "", s)
+    s = unicodedata.normalize("NFKC", s)  # 全角→半角、㈱→(株) なども変換
     s = _LEGAL_SUFFIXES.sub("", s)
+    s = _STRIP_CHARS.sub("", s)
     return s.lower()
+
+
+def _ds1_name_variants(name: str) -> list[str]:
+    """DS1 の社名から複数の正規化バリアントを返す。
+
+    DS1 には「社名_domain.co.jp」「担当者名(社名)_domain.co.jp」のような
+    汚れた形式で登録されているケースがある。ドメイン除去・括弧内抽出の
+    バリアントを返すことで突合精度を高める。
+    """
+    variants: set[str] = set()
+    variants.add(_normalize(name))
+    no_domain = _DOMAIN_SUFFIX.sub("", name)
+    variants.add(_normalize(no_domain))
+    for m in _PAREN_CONTENT.finditer(no_domain):
+        v = _normalize(m.group(1))
+        if len(v) >= 4:
+            variants.add(v)
+    return list(variants)
 
 
 def _city_prefix_match(sf_city: str, ds1_city: str) -> bool:
@@ -106,11 +148,14 @@ def _match_step(
     return result
 
 
-def fetch(client: httpx.Client) -> pd.DataFrame:
-    """Plus アクティブ顧客を返す DataFrame。列: company_uuid, sf_company_name"""
+def _fetch(client: httpx.Client, soql: str) -> pd.DataFrame:
+    """SOQL で SF から取得した顧客を DS1 突合して返す DataFrame。
 
-    # Step 1: SF Plus active 全件
-    sf_rows = redash.run_adhoc_query(client, REDASH.data_sources.sf, _SF_SOQL)
+    列: company_uuid, sf_company_name
+    """
+
+    # Step 1: SF から全件取得
+    sf_rows = redash.run_adhoc_query(client, REDASH.data_sources.sf, soql)
     sf = pd.DataFrame(sf_rows).fillna("")
 
     # SF 社名マップ (CID設定済み)
@@ -142,9 +187,18 @@ def fetch(client: httpx.Client) -> pd.DataFrame:
     ds1["pref"]      = ds1["prefecture_id"].map(_PREF_MAP).fillna("")
     ds1["city_norm"] = ds1["city"].str.strip()
     ds1["name_norm"] = ds1["name"].apply(_normalize)
-    ref = (
-        ds1[ds1["cid"].isin(cas_uuids)][["cid", "name_norm", "pref", "city_norm"]]
-        .rename(columns={"cid": "cas_cid"})
+    _ds1_cas = ds1[ds1["cid"].isin(cas_uuids)].copy()
+    extra_rows = []
+    for _, row in _ds1_cas.iterrows():
+        for v in _ds1_name_variants(row["name"]):
+            if v != row["name_norm"]:
+                extra_rows.append({**row, "name_norm": v})
+    if extra_rows:
+        _ds1_cas = pd.concat(
+            [_ds1_cas, pd.DataFrame(extra_rows)], ignore_index=True
+        ).drop_duplicates(subset="name_norm", keep="first")
+    ref = _ds1_cas[["cid", "name_norm", "pref", "city_norm"]].rename(
+        columns={"cid": "cas_cid"}
     )
 
     # Step 3: 名前 + 住所で段階的突合 (精度順、高いものから)
@@ -177,3 +231,13 @@ def fetch(client: httpx.Client) -> pd.DataFrame:
         sf_names.get(u) or matched_sf_name.get(u, "") for u in all_uuids
     ]
     return pd.DataFrame({"company_uuid": all_uuids, "sf_company_name": all_names})
+
+
+def fetch(client: httpx.Client) -> pd.DataFrame:
+    """Plus アクティブ顧客を返す DataFrame。列: company_uuid, sf_company_name"""
+    return _fetch(client, _SF_SOQL)
+
+
+def fetch_mini(client: httpx.Client) -> pd.DataFrame:
+    """Mini アクティブ顧客を返す DataFrame。列: company_uuid, sf_company_name"""
+    return _fetch(client, _SF_MINI_SOQL)

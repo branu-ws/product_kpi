@@ -83,3 +83,8 @@ def build(conn: duckdb.DuckDBPyConnection) -> pd.DataFrame:
 def build_keiei(conn: duckdb.DuckDBPyConnection) -> pd.DataFrame:
     """keiei_feature_health から keiei_company_loyalty を生成する。"""
     return conn.sql(_LOYALTY_SQL.format(source_table="keiei_feature_health")).df()
+
+
+def build_mini(conn: duckdb.DuckDBPyConnection) -> pd.DataFrame:
+    """mini_feature_health から mini_company_loyalty を生成する。"""
+    return conn.sql(_LOYALTY_SQL.format(source_table="mini_feature_health")).df()

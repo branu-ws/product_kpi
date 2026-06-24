@@ -48,7 +48,7 @@ WITH work_scores AS (
             WHEN fh.usage_count::DOUBLE / wd.working_days >= wt.daily_normal THEN 1
             ELSE 0
         END) AS normal_plus_count
-    FROM feature_health fh
+    FROM {health_table} fh
     JOIN _sp_work_thr  wt ON fh.feature = wt.feature
     JOIN _sp_wd_monthly wd ON fh.month  = wd.usage_month
     GROUP BY fh.month, fh.company_uuid, fh.company_name, fh.lifecycle_stage
@@ -108,10 +108,10 @@ ORDER BY usage_month, company_name
 _WORK_WEEKLY_SQL = """
 WITH active_companies AS (
     SELECT DISTINCT company_uuid
-    FROM customer_lifecycle
+    FROM {lifecycle_table}
     WHERE plan_type IN ({plan_filter})
       AND lifecycle_stage != 'retired'
-      AND month = (SELECT MAX(month) FROM customer_lifecycle)
+      AND month = (SELECT MAX(month) FROM {lifecycle_table})
 ),
 all_week_company AS (
     SELECT wd.week_start, ac.company_uuid
@@ -262,10 +262,10 @@ ORDER BY usage_month, company_name
 _KEIEI_WEEKLY_SQL = """
 WITH active_companies AS (
     SELECT DISTINCT company_uuid
-    FROM customer_lifecycle
+    FROM {lifecycle_table}
     WHERE plan_type IN ({plan_filter})
       AND lifecycle_stage != 'retired'
-      AND month = (SELECT MAX(month) FROM customer_lifecycle)
+      AND month = (SELECT MAX(month) FROM {lifecycle_table})
 ),
 all_week_company AS (
     SELECT wd.week_start, ac.company_uuid
@@ -354,13 +354,19 @@ def _make_thresholds(
 
 def build_work(
     conn: duckdb.DuckDBPyConnection,
+    *,
+    health_table: str = "feature_health",
+    lifecycle_table: str = "customer_lifecycle",
+    plan_types: list[str] | None = None,
 ) -> tuple[pd.DataFrame, pd.DataFrame]:
     """施工管理の単一プロダクト KPI を計算して (monthly_df, weekly_df) を返す。"""
+    if plan_types is None:
+        plan_types = list(ACTIVE_PLAN_TYPES)
     today = date.today()
     cur_ym = today.strftime("%Y-%m")
 
     all_months: list[str] = conn.sql(
-        "SELECT DISTINCT month FROM feature_health ORDER BY month"
+        f"SELECT DISTINCT month FROM {health_table} ORDER BY month"
     ).df()["month"].tolist()
 
     complete_months = [m for m in all_months if m < cur_ym][-TIER.avg_months:]
@@ -384,11 +390,13 @@ def build_work(
         "pro_min": TIER.proactive_feature_min,
         "freq_good": TIER.usage_freq_good,
         "freq_normal": TIER.usage_freq_normal,
+        "health_table": health_table,
+        "lifecycle_table": lifecycle_table,
     }
     monthly_df: pd.DataFrame = conn.sql(_WORK_MONTHLY_SQL.format(**tier_params)).df()
     conn.register("_sp_work_monthly", monthly_df)
 
-    plan_filter = ", ".join(f"'{p}'" for p in ACTIVE_PLAN_TYPES)
+    plan_filter = ", ".join(f"'{p}'" for p in plan_types)
     weekly_df: pd.DataFrame = conn.sql(
         _WORK_WEEKLY_SQL.format(plan_filter=plan_filter, **tier_params)
     ).df()
@@ -397,6 +405,23 @@ def build_work(
         conn.unregister(t)
 
     return monthly_df, weekly_df
+
+
+def build_work_mini(
+    conn: duckdb.DuckDBPyConnection,
+) -> tuple[pd.DataFrame, pd.DataFrame]:
+    """施工管理 Mini 顧客の単一プロダクト KPI を計算する。
+
+    mini_sf_customers に含まれる会社は CAS plan_type が plus の場合もあるため
+    plus/mini 両方を対象にする。
+    Returns (monthly_df, weekly_df).
+    """
+    return build_work(
+        conn,
+        health_table="mini_feature_health",
+        lifecycle_table="mini_customer_lifecycle",
+        plan_types=["plus", "mini"],
+    )
 
 
 def build_keiei(
@@ -431,6 +456,7 @@ def build_keiei(
         "pro_min": TIER.proactive_feature_min,
         "freq_good": TIER.usage_freq_good,
         "freq_normal": TIER.usage_freq_normal,
+        "lifecycle_table": "customer_lifecycle",
     }
     monthly_df: pd.DataFrame = conn.sql(_KEIEI_MONTHLY_SQL.format(**tier_params)).df()
     conn.register("_sp_keiei_monthly", monthly_df)
