@@ -21,6 +21,8 @@ import pandas as pd
 import yaml  # type: ignore[import-untyped]
 from notion_client import Client
 
+from kpi.config import ChartEntry, GcpSettings
+
 log = logging.getLogger(__name__)
 
 _ROOT = Path(__file__).parent.parent
@@ -28,6 +30,40 @@ _CONFIG_PATH = _ROOT / "config.yml"
 _MONTH_RE = re.compile(r"^\d{4}-\d{2}$")
 _WEEK_RE = re.compile(r"^\d{2}-W\d+$")
 _COMBINED_RE = re.compile(r"^\d{4}-\d{2}(-W\d+)?$")
+
+
+def sync_charts(charts: list[ChartEntry], gcp: GcpSettings) -> None:
+    """notion.charts の各グラフを Notion ページに embed ブロックとして注入する (冪等)。
+
+    既に同じ URL の embed ブロックが存在する場合はスキップする。
+    """
+    if not charts or not gcp.charts_bucket:
+        return
+
+    notion: Client = Client(auth=os.environ["NOTION_API_KEY"])
+
+    for chart in charts:
+        url = f"https://storage.googleapis.com/{gcp.charts_bucket}/{Path(chart.html).name}"
+        if _embed_exists(notion, chart.page_id, url):
+            log.info("[chart:%s] embed ブロック既存のためスキップ", chart.name)
+            continue
+
+        notion.blocks.children.append(
+            block_id=chart.page_id,
+            children=[{"object": "block", "type": "embed", "embed": {"url": url}}],
+        )
+        log.info("[chart:%s] embed ブロック注入完了", chart.name)
+
+
+def _embed_exists(notion: Client, page_id: str, url: str) -> bool:
+    result = cast(
+        dict[str, Any],
+        notion.blocks.children.list(block_id=page_id),
+    )
+    return any(
+        b.get("type") == "embed" and b.get("embed", {}).get("url") == url
+        for b in result.get("results", [])
+    )
 
 
 def sync_all(conn: duckdb.DuckDBPyConnection) -> None:
@@ -62,15 +98,18 @@ def _sync_output(
 ) -> None:
     if time_col == "week":
         period_re = _WEEK_RE
+        time_col_name = "week"
     elif time_col == "combined":
         period_re = _COMBINED_RE
+        time_col_name = "month"  # combined SQL outputs a "month" column
     else:
         period_re = _MONTH_RE
+        time_col_name = "month"
 
-    df = df.sort_values("month").tail(months_to_show)
-    periods: list[str] = [str(p) for p in df["month"].tolist()]
-    metric_cols = [c for c in df.columns if c != "month"]
-    pivot = df.set_index("month")[metric_cols].T
+    df = df.sort_values(time_col_name).tail(months_to_show)
+    periods: list[str] = [str(p) for p in df[time_col_name].tolist()]
+    metric_cols = [c for c in df.columns if c != time_col_name]
+    pivot = df.set_index(time_col_name)[metric_cols].T
 
     log.info("  既存ページをアーカイブ中...")
     _archive_all(notion, ds_id)

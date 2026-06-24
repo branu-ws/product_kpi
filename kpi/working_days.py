@@ -13,9 +13,7 @@ def _is_working(d: date) -> bool:
 
 def _count(start: date, end: date) -> int:
     return sum(
-        1
-        for i in range((end - start).days + 1)
-        if _is_working(start + timedelta(i))
+        1 for i in range((end - start).days + 1) if _is_working(start + timedelta(i))
     )
 
 
@@ -27,8 +25,10 @@ def _month_bounds(ym: str) -> tuple[date, date]:
 def build_monthly(months: list[str]) -> pd.DataFrame:
     """usage_month → working_days の DataFrame を返す。"""
     return pd.DataFrame(
-        [{"usage_month": ym, "working_days": _count(*_month_bounds(ym))}
-         for ym in months]
+        [
+            {"usage_month": ym, "working_days": _count(*_month_bounds(ym))}
+            for ym in months
+        ]
     )
 
 

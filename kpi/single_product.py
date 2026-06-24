@@ -365,11 +365,13 @@ def build_work(
     today = date.today()
     cur_ym = today.strftime("%Y-%m")
 
-    all_months: list[str] = conn.sql(
-        f"SELECT DISTINCT month FROM {health_table} ORDER BY month"
-    ).df()["month"].tolist()
+    all_months: list[str] = (
+        conn.sql(f"SELECT DISTINCT month FROM {health_table} ORDER BY month")
+        .df()["month"]
+        .tolist()
+    )
 
-    complete_months = [m for m in all_months if m < cur_ym][-TIER.avg_months:]
+    complete_months = [m for m in all_months if m < cur_ym][-TIER.avg_months :]
     avg_days = avg_per_month(complete_months)
 
     work_thr = _make_thresholds(FEATURE_THRESHOLDS, avg_days)
@@ -431,11 +433,13 @@ def build_keiei(
     today = date.today()
     cur_ym = today.strftime("%Y-%m")
 
-    all_months: list[str] = conn.sql(
-        "SELECT DISTINCT month FROM keiei_feature_health ORDER BY month"
-    ).df()["month"].tolist()
+    all_months: list[str] = (
+        conn.sql("SELECT DISTINCT month FROM keiei_feature_health ORDER BY month")
+        .df()["month"]
+        .tolist()
+    )
 
-    complete_months = [m for m in all_months if m < cur_ym][-TIER.avg_months:]
+    complete_months = [m for m in all_months if m < cur_ym][-TIER.avg_months :]
     avg_days = avg_per_month(complete_months)
 
     keiei_thr = _make_thresholds(KEIEI_FEATURE_THRESHOLDS, avg_days)

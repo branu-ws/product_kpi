@@ -13,6 +13,7 @@ from dotenv import load_dotenv
 from tqdm import tqdm
 
 from kpi import (
+    charts,
     companies,
     company_loyalty,
     contracts,
@@ -214,6 +215,11 @@ def update_duckdb() -> None:
     if views:
         db.save_views(dict(views))
 
+    chart_list = kpi_config.load_notion_charts()
+    if chart_list:
+        gcp = kpi_config.load_gcp()
+        charts.generate_and_upload(chart_list, gcp)
+
     log.info("完了")
 
 
@@ -227,11 +233,13 @@ def bq_update() -> None:
 
 
 def sync_notion() -> None:
-    """config.yml の notion.outputs を Notion DB に同期する。"""
+    """config.yml の notion.outputs を Notion DB に同期し、embed ブロックを注入する。"""
     load_dotenv()
     conn = db.load()
     notion_sync.sync_all(conn)
     conn.close()
+    gcp = kpi_config.load_gcp()
+    notion_sync.sync_charts(kpi_config.load_notion_charts(), gcp)
 
 
 def export_csv() -> None:

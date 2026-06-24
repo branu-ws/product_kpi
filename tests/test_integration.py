@@ -93,8 +93,12 @@ class TestSingleProductPipeline:
         monthly, _ = single_product.build_work(pipeline_conn)
 
         required = {
-            "usage_month", "company_uuid", "company_name",
-            "diversity_tier", "usage_freq", "feature_score",
+            "usage_month",
+            "company_uuid",
+            "company_name",
+            "diversity_tier",
+            "usage_freq",
+            "feature_score",
         }
         assert required <= set(monthly.columns)
 
@@ -116,8 +120,11 @@ class TestSingleProductPipeline:
         _, weekly = single_product.build_work(pipeline_conn)
 
         required = {
-            "week_start", "company_uuid", "feature_score",
-            "usage_freq", "diversity_tier",
+            "week_start",
+            "company_uuid",
+            "feature_score",
+            "usage_freq",
+            "diversity_tier",
         }
         assert required <= set(weekly.columns)
 
@@ -168,9 +175,13 @@ class TestCrossProductPipeline:
 
 class TestPipelineConsistency:
     def test_months_align_between_lifecycle_and_single_product(self, pipeline_conn):
-        lifecycle_df = pipeline_conn.sql(
-            "SELECT DISTINCT month FROM customer_lifecycle ORDER BY month"
-        ).df()["month"].tolist()
+        lifecycle_df = (
+            pipeline_conn.sql(
+                "SELECT DISTINCT month FROM customer_lifecycle ORDER BY month"
+            )
+            .df()["month"]
+            .tolist()
+        )
 
         monthly, _ = single_product.build_work(pipeline_conn)
         sp_months = sorted(monthly["usage_month"].unique().tolist())

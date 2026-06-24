@@ -3,6 +3,7 @@
 import pandas as pd
 
 from kpi import feature_health
+from kpi.config import FEATURE_THRESHOLDS
 
 
 def _make_lifecycle(uuid, month, stage="plus"):
@@ -52,8 +53,11 @@ class TestHealthThreshold:
 
     def test_normal_at_boundary(self, conn):
         uuid, pid, month = "aaaa", 1, "2024-01"
+        normal_min = FEATURE_THRESHOLDS["出面"].normal_min
         conn.register("customer_lifecycle", _make_lifecycle(uuid, month))
-        conn.register("work_user_history", _make_history(pid, "出面", month, count=3))
+        conn.register(
+            "work_user_history", _make_history(pid, "出面", month, count=normal_min)
+        )
         conn.register("work_process_id_generator", _make_projects(pid, uuid))
         conn.register("companies", _make_companies(uuid))
 

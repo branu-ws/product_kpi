@@ -48,6 +48,14 @@ class RedashSettings(BaseModel, frozen=True):
 class GcpSettings(BaseModel, frozen=True):
     project_id: str
     dataset: str = "kpi"
+    charts_bucket: str = ""
+
+
+class ChartEntry(BaseModel, frozen=True):
+    name: str
+    script: str
+    html: str
+    page_id: str
 
 
 class _KpiSettings(BaseModel, frozen=True):
@@ -71,6 +79,13 @@ def load_gcp() -> GcpSettings:
 def load_redash() -> RedashSettings:
     raw = yaml.safe_load(_CONFIG_PATH.read_text())
     return RedashSettings.model_validate(raw["redash"])
+
+
+def load_notion_charts() -> list[ChartEntry]:
+    raw = yaml.safe_load(_CONFIG_PATH.read_text())
+    return [
+        ChartEntry.model_validate(c) for c in raw.get("notion", {}).get("charts", [])
+    ]
 
 
 _settings = _load()

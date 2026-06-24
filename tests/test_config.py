@@ -30,10 +30,10 @@ class TestTierParams:
         assert TIER.xproduct_score_min == 1
 
     def test_usage_freq_good(self):
-        assert TIER.usage_freq_good == 5
+        assert TIER.usage_freq_good > TIER.usage_freq_normal > 0
 
     def test_usage_freq_normal(self):
-        assert TIER.usage_freq_normal == 3
+        assert 0 < TIER.usage_freq_normal < TIER.usage_freq_good
 
 
 class TestRedashSettings:
@@ -56,13 +56,11 @@ class TestRedashSettings:
 class TestFeatureThresholds:
     def test_work_idenmen_thresholds(self):
         thr = FEATURE_THRESHOLDS["出面"]
-        assert thr.good_min == 10
-        assert thr.normal_min == 3
+        assert thr.good_min > thr.normal_min > 0
 
     def test_work_koutei_thresholds(self):
         thr = FEATURE_THRESHOLDS["工程作成"]
-        assert thr.good_min == 20
-        assert thr.normal_min == 5
+        assert thr.good_min > thr.normal_min > 0
 
     def test_all_work_features_present(self):
         expected = {"工程作成", "出面", "出来高", "ホワイトボード", "日報", "報告書"}

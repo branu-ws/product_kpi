@@ -27,16 +27,53 @@ from kpi import redash
 from kpi.config import REDASH
 
 _PREF_MAP = {
-    1: "北海道", 2: "青森県", 3: "岩手県", 4: "宮城県", 5: "秋田県",
-    6: "山形県", 7: "福島県", 8: "茨城県", 9: "栃木県", 10: "群馬県",
-    11: "埼玉県", 12: "千葉県", 13: "東京都", 14: "神奈川県", 15: "新潟県",
-    16: "富山県", 17: "石川県", 18: "福井県", 19: "山梨県", 20: "長野県",
-    21: "岐阜県", 22: "静岡県", 23: "愛知県", 24: "三重県", 25: "滋賀県",
-    26: "京都府", 27: "大阪府", 28: "兵庫県", 29: "奈良県", 30: "和歌山県",
-    31: "鳥取県", 32: "島根県", 33: "岡山県", 34: "広島県", 35: "山口県",
-    36: "徳島県", 37: "香川県", 38: "愛媛県", 39: "高知県", 40: "福岡県",
-    41: "佐賀県", 42: "長崎県", 43: "熊本県", 44: "大分県", 45: "宮崎県",
-    46: "鹿児島県", 47: "沖縄県",
+    1: "北海道",
+    2: "青森県",
+    3: "岩手県",
+    4: "宮城県",
+    5: "秋田県",
+    6: "山形県",
+    7: "福島県",
+    8: "茨城県",
+    9: "栃木県",
+    10: "群馬県",
+    11: "埼玉県",
+    12: "千葉県",
+    13: "東京都",
+    14: "神奈川県",
+    15: "新潟県",
+    16: "富山県",
+    17: "石川県",
+    18: "福井県",
+    19: "山梨県",
+    20: "長野県",
+    21: "岐阜県",
+    22: "静岡県",
+    23: "愛知県",
+    24: "三重県",
+    25: "滋賀県",
+    26: "京都府",
+    27: "大阪府",
+    28: "兵庫県",
+    29: "奈良県",
+    30: "和歌山県",
+    31: "鳥取県",
+    32: "島根県",
+    33: "岡山県",
+    34: "広島県",
+    35: "山口県",
+    36: "徳島県",
+    37: "香川県",
+    38: "愛媛県",
+    39: "高知県",
+    40: "福岡県",
+    41: "佐賀県",
+    42: "長崎県",
+    43: "熊本県",
+    44: "大分県",
+    45: "宮崎県",
+    46: "鹿児島県",
+    47: "沖縄県",
 }
 
 _SF_SOQL = """
@@ -160,17 +197,22 @@ def _fetch(client: httpx.Client, soql: str) -> pd.DataFrame:
 
     # SF 社名マップ (CID設定済み)
     sf_names: dict[str, str] = dict(
-        zip(sf.loc[sf["CAREECON_CID__c"] != "", "CAREECON_CID__c"],
-            sf.loc[sf["CAREECON_CID__c"] != "", "Name"], strict=True)
+        zip(
+            sf.loc[sf["CAREECON_CID__c"] != "", "CAREECON_CID__c"],
+            sf.loc[sf["CAREECON_CID__c"] != "", "Name"],
+            strict=True,
+        )
     )
     confirmed = set(sf_names.keys())
-    no_cid    = sf[sf["CAREECON_CID__c"] == ""].copy()
+    no_cid = sf[sf["CAREECON_CID__c"] == ""].copy()
 
     if no_cid.empty:
-        return pd.DataFrame({
-            "company_uuid":    sorted(confirmed),
-            "sf_company_name": [sf_names[u] for u in sorted(confirmed)],
-        })
+        return pd.DataFrame(
+            {
+                "company_uuid": sorted(confirmed),
+                "sf_company_name": [sf_names[u] for u in sorted(confirmed)],
+            }
+        )
 
     # Step 2: DS1 companies (住所マッチング用)
     # CAS accounts に存在する UUID のみを候補にすることで
@@ -184,7 +226,7 @@ def _fetch(client: httpx.Client, soql: str) -> pd.DataFrame:
     ds1 = pd.DataFrame(
         redash.run_adhoc_query(client, REDASH.data_sources.db, _DS1_SQL)
     ).fillna("")
-    ds1["pref"]      = ds1["prefecture_id"].map(_PREF_MAP).fillna("")
+    ds1["pref"] = ds1["prefecture_id"].map(_PREF_MAP).fillna("")
     ds1["city_norm"] = ds1["city"].str.strip()
     ds1["name_norm"] = ds1["name"].apply(_normalize)
     _ds1_cas = ds1[ds1["cid"].isin(cas_uuids)].copy()
@@ -203,19 +245,19 @@ def _fetch(client: httpx.Client, soql: str) -> pd.DataFrame:
 
     # Step 3: 名前 + 住所で段階的突合 (精度順、高いものから)
     no_cid["name_norm"] = no_cid["Name"].apply(_normalize)
-    no_cid["pref"]      = no_cid["BillingState"].str.strip()
+    no_cid["pref"] = no_cid["BillingState"].str.strip()
     no_cid["city_norm"] = no_cid["BillingCity"].str.strip()
     # name_norm → SF表示名 マップ (マッチング後の社名復元用)
     sf_name_by_norm: dict[str, str] = dict(
         zip(no_cid["name_norm"], no_cid["Name"], strict=True)
     )
 
-    matched: dict[str, str] = {}           # name_norm → cas_cid
-    matched_sf_name: dict[str, str] = {}   # cas_cid  → SF表示名
+    matched: dict[str, str] = {}  # name_norm → cas_cid
+    matched_sf_name: dict[str, str] = {}  # cas_cid  → SF表示名
 
     for use_pref, use_city in [
-        (True,  True),   # 名前 + 都道府県 + 市区前方一致
-        (True,  False),  # 名前 + 都道府県
+        (True, True),  # 名前 + 都道府県 + 市区前方一致
+        (True, False),  # 名前 + 都道府県
         (False, False),  # 名前のみ
     ]:
         rem = no_cid[~no_cid["name_norm"].isin(matched)]
@@ -227,9 +269,7 @@ def _fetch(client: httpx.Client, soql: str) -> pd.DataFrame:
             matched_sf_name[uuid] = sf_name_by_norm.get(norm, "")
 
     all_uuids = sorted(confirmed | set(matched.values()))
-    all_names = [
-        sf_names.get(u) or matched_sf_name.get(u, "") for u in all_uuids
-    ]
+    all_names = [sf_names.get(u) or matched_sf_name.get(u, "") for u in all_uuids]
     return pd.DataFrame({"company_uuid": all_uuids, "sf_company_name": all_names})
 
 

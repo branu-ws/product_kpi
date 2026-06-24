@@ -211,3 +211,73 @@ Redash で SOQL を直接実行する場合は DS11 (sf) を使う。SOQL の制
 - `UNION` 非対応 → Plus と Mini は別クエリで取得
 - `GROUP BY` でエイリアス使用不可 → 元の式を繰り返す
 - `COUNT(DISTINCT ...)` を `GROUP BY` と組み合わせ不可 → Python 側で処理
+
+---
+
+## Notion へのグラフ注入ワークフロー
+
+DuckDB → Plotly HTML → GCS → Notion embed という流れで、インタラクティブなグラフを Notion に埋め込める。
+
+### インフラ
+
+| リソース | 値 |
+|---------|-----|
+| GCS バケット | `gs://product-kpi-charts-branu` (公開、asia-northeast1) |
+| 公開 URL パターン | `https://storage.googleapis.com/product-kpi-charts-branu/{filename}.html` |
+| Notion API Key | `.env` の `NOTION_API_KEY` |
+
+### グラフ生成スクリプト
+
+`scripts/plot_*.py` を作成し、`output/html/` に HTML を出力する規約。
+
+```python
+# 最小構成
+import kpi.db as db
+import plotly.graph_objects as go
+
+conn = db.load()
+df = conn.sql("SELECT ...").df()
+conn.close()
+
+fig = go.Figure(...)
+fig.write_html("output/html/xxx.html", include_plotlyjs="cdn")
+```
+
+### GCS へのアップロード
+
+```bash
+gcloud storage cp output/html/*.html gs://product-kpi-charts-branu/ --content-type="text/html"
+```
+
+### Notion ページへの初回埋め込み（Claude が実行可能）
+
+```python
+import os, requests
+from dotenv import load_dotenv
+load_dotenv()
+
+PAGE_ID = "xxxx-xxxx-xxxx-xxxx-xxxx"  # Notion ページ URL 末尾の ID をハイフン区切りに変換
+URL = "https://storage.googleapis.com/product-kpi-charts-branu/xxx.html"
+
+requests.patch(
+    f"https://api.notion.com/v1/blocks/{PAGE_ID}/children",
+    headers={
+        "Authorization": f'Bearer {os.getenv("NOTION_API_KEY")}',
+        "Content-Type": "application/json",
+        "Notion-Version": "2022-06-28",
+    },
+    json={"children": [{"object": "block", "type": "embed", "embed": {"url": URL}}]},
+)
+```
+
+### 更新時の挙動
+
+- GCS ファイルを上書きするだけで Notion 側は自動反映（ページリロードで表示更新）
+- Notion 上でリサイズした embed ブロックのサイズは GCS 更新後も保持される
+- embed ブロックを削除→再作成するとリサイズがリセットされるので注意
+
+### ⚠️ BQ カラム名について
+
+現在 BQ 向けカラム名は英語統一（Looker Studio が日本語非対応のため）。
+Notion + Plotly に移行した場合、Plotly 側でラベルを自由に設定できるため BQ カラム名の制約は不要になる。
+Looker Studio 廃止判断のタイミングで日本語化を検討すること。

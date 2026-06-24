@@ -9,6 +9,7 @@ count 選択方針 (cross_product と同じ):
 import pandas as pd
 
 from kpi import single_product
+from kpi.config import TIER
 from tests.helpers import (
     HIGH,
     MID,
@@ -131,25 +132,28 @@ class TestWorkDiversityTier:
 class TestWorkUsageFreq:
     def test_good_when_feature_score_gte_5(self, conn):
         # 3 features xHIGH (score=2) = 6 ≥ 5 → good
-        fh = make_fh(
-            _UUID, ["2024-01"], {"出面": HIGH, "日報": HIGH, "報告書": HIGH}
-        )
+        fh = make_fh(_UUID, ["2024-01"], {"出面": HIGH, "日報": HIGH, "報告書": HIGH})
         _register_work(conn, fh)
 
         monthly, _ = single_product.build_work(conn)
         assert monthly.iloc[0]["usage_freq"] == "good"
 
-    def test_normal_when_feature_score_is_4(self, conn):
-        # 2 features xHIGH = 4 (≥3, <5) → normal
-        fh = make_fh(_UUID, ["2024-01"], {"出面": HIGH, "日報": HIGH})
+    def test_normal_when_feature_score_in_normal_range(self, conn):
+        # 1 HIGH feature → score=2
+        # Precondition: score=2 must be in [usage_freq_normal, usage_freq_good)
+        assert TIER.usage_freq_normal <= 2 < TIER.usage_freq_good, (
+            f"Config changed (normal={TIER.usage_freq_normal}, "
+            f"good={TIER.usage_freq_good}): update test data setup"
+        )
+        fh = make_fh(_UUID, ["2024-01"], {"出面": HIGH})
         _register_work(conn, fh)
 
         monthly, _ = single_product.build_work(conn)
         assert monthly.iloc[0]["usage_freq"] == "normal"
 
-    def test_bad_when_feature_score_lt_3(self, conn):
-        # 1 feature xHIGH = 2 < 3 → bad
-        fh = make_fh(_UUID, ["2024-01"], {"出面": HIGH})
+    def test_bad_when_feature_score_below_normal(self, conn):
+        # ZERO → score=0 < usage_freq_normal → bad
+        fh = make_fh(_UUID, ["2024-01"], {"出面": ZERO})
         _register_work(conn, fh)
 
         monthly, _ = single_product.build_work(conn)
@@ -157,9 +161,7 @@ class TestWorkUsageFreq:
 
     def test_mid_usage_gives_score_1_per_feature(self, conn):
         # 3 features xMID (score=1) = 3 → normal
-        fh = make_fh(
-            _UUID, ["2024-01"], {"出面": MID, "日報": MID, "報告書": MID}
-        )
+        fh = make_fh(_UUID, ["2024-01"], {"出面": MID, "日報": MID, "報告書": MID})
         _register_work(conn, fh)
 
         monthly, _ = single_product.build_work(conn)
@@ -177,8 +179,11 @@ class TestWorkWeeklySchema:
         _, weekly = single_product.build_work(conn)
         assert isinstance(weekly, pd.DataFrame)
         expected_cols = {
-            "week_start", "company_uuid", "feature_score",
-            "usage_freq", "diversity_tier",
+            "week_start",
+            "company_uuid",
+            "feature_score",
+            "usage_freq",
+            "diversity_tier",
         }
         assert expected_cols <= set(weekly.columns)
 
@@ -226,9 +231,7 @@ class TestKeieiDiversityTier:
         assert (monthly["diversity_tier"] == "onboarding").all()
 
     def test_keiei_passive_when_window_less_than_3(self, conn):
-        kfh = make_kfh(
-            _UUID, ["2024-01", "2024-02"], {"案件ステータス更新": HIGH}
-        )
+        kfh = make_kfh(_UUID, ["2024-01", "2024-02"], {"案件ステータス更新": HIGH})
         _register_keiei(conn, kfh)
 
         monthly, _ = single_product.build_keiei(conn)

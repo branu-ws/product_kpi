@@ -11,6 +11,7 @@
 import pandas as pd
 
 from kpi import cross_product
+from kpi.config import TIER
 from tests.helpers import (
     HIGH,
     ZERO,
@@ -140,22 +141,28 @@ class TestUsageFreq:
         monthly, _ = cross_product.build(conn)
         assert monthly.iloc[0]["usage_freq"] == "good"
 
-    def test_normal_when_total_score_is_4(self, conn):
-        # work: 2 features xHIGH = 4, keiei: 0 → total=4 (≥3, <5) → normal
-        fh = make_fh(_UUID, ["2024-01"], {"出面": HIGH, "日報": HIGH})
+    def test_normal_when_total_score_in_normal_range(self, conn):
+        # 1 HIGH work feature → work_score=2, total=2
+        # Precondition: score=2 must be in [usage_freq_normal, usage_freq_good)
+        assert TIER.usage_freq_normal <= 2 < TIER.usage_freq_good, (
+            f"Config changed (normal={TIER.usage_freq_normal}, "
+            f"good={TIER.usage_freq_good}): update test data setup"
+        )
+        fh = make_fh(_UUID, ["2024-01"], {"出面": HIGH})
         kfh = make_kfh(_UUID, ["2024-01"], {"案件ステータス更新": ZERO})
         _register(conn, fh, kfh)
 
         monthly, _ = cross_product.build(conn)
         assert monthly.iloc[0]["usage_freq"] == "normal"
 
-    def test_bad_when_total_score_lt_3(self, conn):
-        # work: 1 feature xHIGH = 2, keiei: 0 → total=2 < 3 → bad
-        fh = make_fh(_UUID, ["2024-01"], {"出面": HIGH})
+    def test_bad_when_total_score_below_normal(self, conn):
+        # ZERO for all → total=0 < usage_freq_normal → bad
+        fh = make_fh(_UUID, ["2024-01"], {"出面": ZERO})
         kfh = make_kfh(_UUID, ["2024-01"], {"案件ステータス更新": ZERO})
         _register(conn, fh, kfh)
 
         monthly, _ = cross_product.build(conn)
+        assert monthly.iloc[0]["total_score"] < TIER.usage_freq_normal
         assert monthly.iloc[0]["usage_freq"] == "bad"
 
     def test_work_and_keiei_scores_summed(self, conn):
@@ -172,18 +179,18 @@ class TestUsageFreq:
         assert monthly.iloc[0]["total_score"] == 6
         assert monthly.iloc[0]["usage_freq"] == "good"
 
-    def test_total_score_exactly_at_normal_boundary(self, conn):
-        # work: 1.5 feature score = 3, keiei: 0 → total=3 → normal
-        # 1 HIGH (score=2) + 1 MID-level feature = 1... tricky
-        # Simpler: work: 1 HIGH (2) + keiei: 1 HIGH (2) = total 4... still ≥ 3
-        # Score=3 combo is not easily isolated with current helpers;
-        # Use: 1 keiei feature (2) + 1 work feature (2) = 4 → normal
+    def test_total_score_at_normal_boundary(self, conn):
+        # 1 HIGH work (score=2) + ZERO keiei → total=2 = usage_freq_normal
+        # Precondition: 1 HIGH feature must produce exactly usage_freq_normal
+        assert TIER.usage_freq_normal == 2, (
+            f"Config changed (normal={TIER.usage_freq_normal}): update test data setup"
+        )
         fh = make_fh(_UUID, ["2024-01"], {"出面": HIGH})
-        kfh = make_kfh(_UUID, ["2024-01"], {"案件ステータス更新": HIGH})
+        kfh = make_kfh(_UUID, ["2024-01"], {"案件ステータス更新": ZERO})
         _register(conn, fh, kfh)
 
         monthly, _ = cross_product.build(conn)
-        assert monthly.iloc[0]["total_score"] == 4
+        assert monthly.iloc[0]["total_score"] == TIER.usage_freq_normal
         assert monthly.iloc[0]["usage_freq"] == "normal"
 
 
@@ -200,7 +207,11 @@ class TestWeeklySchema:
         _, weekly = cross_product.build(conn)
         assert isinstance(weekly, pd.DataFrame)
         expected_cols = {
-            "week_start", "company_uuid", "work_score",
-            "keiei_score", "usage_freq", "integration_tier",
+            "week_start",
+            "company_uuid",
+            "work_score",
+            "keiei_score",
+            "usage_freq",
+            "integration_tier",
         }
         assert expected_cols <= set(weekly.columns)

@@ -258,11 +258,13 @@ def build(
     today = date.today()
     cur_ym = today.strftime("%Y-%m")
 
-    all_months: list[str] = conn.sql(
-        "SELECT DISTINCT month FROM feature_health ORDER BY month"
-    ).df()["month"].tolist()
+    all_months: list[str] = (
+        conn.sql("SELECT DISTINCT month FROM feature_health ORDER BY month")
+        .df()["month"]
+        .tolist()
+    )
 
-    complete_months = [m for m in all_months if m < cur_ym][-TIER.avg_months:]
+    complete_months = [m for m in all_months if m < cur_ym][-TIER.avg_months :]
     avg_days = avg_per_month(complete_months)
 
     work_thr = pd.DataFrame(
@@ -312,8 +314,11 @@ def build(
     ).df()
 
     for t in [
-        "_cp_work_thr", "_cp_keiei_thr", "_cp_wd_monthly",
-        "_cp_wd_weekly", "_cp_monthly_company",
+        "_cp_work_thr",
+        "_cp_keiei_thr",
+        "_cp_wd_monthly",
+        "_cp_wd_weekly",
+        "_cp_monthly_company",
     ]:
         conn.unregister(t)
 

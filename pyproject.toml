@@ -7,11 +7,13 @@ requires-python = ">=3.12"
 dependencies = [
     "duckdb>=1.5.3",
     "google-cloud-bigquery>=3.42.0",
+    "google-cloud-storage>=3.1.0",
     "httpx>=0.28.1",
     "jpholiday>=1.0.3",
     "notion-client>=3.1.0",
     "pandas>=3.0.3",
     "pandas-gbq>=0.35.0",
+    "plotly>=6.8.0",
     "pyarrow>=24.0.0",
     "pydantic>=2.13.4",
     "python-dotenv>=1.2.2",
@@ -89,3 +91,7 @@ show_error_codes = true
 [[tool.mypy.overrides]]
 module = "tests.*"
 ignore_errors = true
+
+[[tool.mypy.overrides]]
+module = ["google.cloud.*", "notion_client.*"]
+ignore_missing_imports = true

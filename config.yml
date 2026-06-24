@@ -52,9 +52,15 @@ gcp:
   bq_dataset: "kpi"
   region: "asia-northeast1"
   job_name: "kpi-pipeline-job"
+  charts_bucket: "product-kpi-charts-branu"
 
 notion:
   months_to_show: 18    # 横展開する月数
+  charts:
+    - name: "xproduct_segment_trend"
+      script: "scripts/plot_xproduct_segment_trend.py"
+      html: "output/html/xproduct_segment_trend.html"
+      page_id: "3899cbb2-3130-8027-8849-f02d924701b7"
   outputs:
     - name: "cross_product"
       sql: "collections/notion/cross_product/cross_product_combined_matrix.sql"
