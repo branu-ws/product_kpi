@@ -2,21 +2,21 @@ import os
 import time
 
 import httpx
-from dotenv import load_dotenv
 
 from kpi.config import REDASH
 
-load_dotenv()
-
 BASE_URL = REDASH.base_url
-_API_KEY = os.environ["REDASH_API_KEY"]
 
 _POLL_INTERVAL = 5
 _POLL_MAX = 240  # 最大 20 分
 
 
+def _api_key() -> str:
+    return os.environ["REDASH_API_KEY"]
+
+
 def _headers() -> dict[str, str]:
-    return {"Authorization": f"Key {_API_KEY}"}
+    return {"Authorization": f"Key {_api_key()}"}
 
 
 def get_data_source_id(client: httpx.Client, query_id: int) -> int:

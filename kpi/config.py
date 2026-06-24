@@ -4,7 +4,9 @@
 コードは変更不要。
 """
 
+import functools
 from pathlib import Path
+from typing import Any, cast
 
 import yaml  # type: ignore[import-untyped]
 from pydantic import BaseModel
@@ -58,6 +60,20 @@ class ChartEntry(BaseModel, frozen=True):
     page_id: str
 
 
+class NotionOutputEntry(BaseModel, frozen=True):
+    name: str
+    sql: str
+    db_id: str
+    ds_id: str
+    time_col: str = "month"
+
+
+class NotionConfig(BaseModel, frozen=True):
+    months_to_show: int = 18
+    outputs: list[NotionOutputEntry] = []
+    charts: list[ChartEntry] = []
+
+
 class _KpiSettings(BaseModel, frozen=True):
     feature_thresholds: dict[str, FeatureThreshold]
     keiei_feature_thresholds: dict[str, FeatureThreshold]
@@ -66,26 +82,29 @@ class _KpiSettings(BaseModel, frozen=True):
     active_plan_types: list[str]
 
 
+@functools.lru_cache(maxsize=1)
+def _raw() -> dict[str, Any]:
+    return cast(dict[str, Any], yaml.safe_load(_CONFIG_PATH.read_text()))
+
+
 def _load() -> _KpiSettings:
-    raw = yaml.safe_load(_CONFIG_PATH.read_text())
-    return _KpiSettings.model_validate(raw["kpi"])
+    return _KpiSettings.model_validate(_raw()["kpi"])
 
 
 def load_gcp() -> GcpSettings:
-    raw = yaml.safe_load(_CONFIG_PATH.read_text())
-    return GcpSettings.model_validate(raw["gcp"])
+    return GcpSettings.model_validate(_raw()["gcp"])
 
 
 def load_redash() -> RedashSettings:
-    raw = yaml.safe_load(_CONFIG_PATH.read_text())
-    return RedashSettings.model_validate(raw["redash"])
+    return RedashSettings.model_validate(_raw()["redash"])
+
+
+def load_notion_config() -> NotionConfig:
+    return NotionConfig.model_validate(_raw().get("notion", {}))
 
 
 def load_notion_charts() -> list[ChartEntry]:
-    raw = yaml.safe_load(_CONFIG_PATH.read_text())
-    return [
-        ChartEntry.model_validate(c) for c in raw.get("notion", {}).get("charts", [])
-    ]
+    return load_notion_config().charts
 
 
 _settings = _load()

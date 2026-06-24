@@ -16,18 +16,16 @@ usage_freq の判定 (total_score = work_score + keiei_score):
   bad    : <3
 """
 
-from datetime import date, timedelta
-
 import duckdb
 import pandas as pd
 
+from kpi.build_context import make_build_context, make_thresholds
 from kpi.config import (
     ACTIVE_PLAN_TYPES,
     FEATURE_THRESHOLDS,
     KEIEI_FEATURE_THRESHOLDS,
     TIER,
 )
-from kpi.working_days import avg_per_month, build_monthly, build_weekly
 
 _MONTHLY_SQL = """
 WITH work_scores AS (
@@ -255,48 +253,19 @@ def build(
         monthly_df : company x usage_month (integration_tier, usage_freq 付き)
         weekly_df  : company x week_start  (usage_freq, integration_tier 付き, 直近12週)
     """
-    today = date.today()
-    cur_ym = today.strftime("%Y-%m")
-
     all_months: list[str] = (
         conn.sql("SELECT DISTINCT month FROM feature_health ORDER BY month")
         .df()["month"]
         .tolist()
     )
+    ctx = make_build_context(all_months)
 
-    complete_months = [m for m in all_months if m < cur_ym][-TIER.avg_months :]
-    avg_days = avg_per_month(complete_months)
-
-    work_thr = pd.DataFrame(
-        [
-            {
-                "feature": k,
-                "daily_good": v.good_min / avg_days,
-                "daily_normal": v.normal_min / avg_days,
-            }
-            for k, v in FEATURE_THRESHOLDS.items()
-        ]
-    )
-    keiei_thr = pd.DataFrame(
-        [
-            {
-                "feature": k,
-                "daily_good": v.good_min / avg_days,
-                "daily_normal": v.normal_min / avg_days,
-            }
-            for k, v in KEIEI_FEATURE_THRESHOLDS.items()
-        ]
-    )
-    wd_monthly = build_monthly(all_months)
-
-    this_monday = today - timedelta(days=today.weekday())
-    weeks = [this_monday - timedelta(weeks=i) for i in range(TIER.weekly_window)][::-1]
-    wd_weekly = build_weekly(weeks)
-
+    work_thr = make_thresholds(FEATURE_THRESHOLDS, ctx.avg_days)
+    keiei_thr = make_thresholds(KEIEI_FEATURE_THRESHOLDS, ctx.avg_days)
     conn.register("_cp_work_thr", work_thr)
     conn.register("_cp_keiei_thr", keiei_thr)
-    conn.register("_cp_wd_monthly", wd_monthly)
-    conn.register("_cp_wd_weekly", wd_weekly)
+    conn.register("_cp_wd_monthly", ctx.wd_monthly)
+    conn.register("_cp_wd_weekly", ctx.wd_weekly)
 
     tier_params = {
         "rolling_months": TIER.rolling_months,

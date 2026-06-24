@@ -18,19 +18,16 @@ usage_freq の判定 (稼働日正規化の feature_score 合計):
   bad    : <3
 """
 
-from datetime import date, timedelta
-
 import duckdb
 import pandas as pd
 
+from kpi.build_context import make_build_context, make_thresholds
 from kpi.config import (
     ACTIVE_PLAN_TYPES,
     FEATURE_THRESHOLDS,
     KEIEI_FEATURE_THRESHOLDS,
     TIER,
-    FeatureThreshold,
 )
-from kpi.working_days import avg_per_month, build_monthly, build_weekly
 
 _WORK_MONTHLY_SQL = """
 WITH work_scores AS (
@@ -337,21 +334,6 @@ ORDER BY cw.week_start, cw.company_uuid
 """
 
 
-def _make_thresholds(
-    thresholds: dict[str, FeatureThreshold], avg_days: float
-) -> pd.DataFrame:
-    return pd.DataFrame(
-        [
-            {
-                "feature": k,
-                "daily_good": v.good_min / avg_days,
-                "daily_normal": v.normal_min / avg_days,
-            }
-            for k, v in thresholds.items()
-        ]
-    )
-
-
 def build_work(
     conn: duckdb.DuckDBPyConnection,
     *,
@@ -362,28 +344,18 @@ def build_work(
     """施工管理の単一プロダクト KPI を計算して (monthly_df, weekly_df) を返す。"""
     if plan_types is None:
         plan_types = list(ACTIVE_PLAN_TYPES)
-    today = date.today()
-    cur_ym = today.strftime("%Y-%m")
 
     all_months: list[str] = (
         conn.sql(f"SELECT DISTINCT month FROM {health_table} ORDER BY month")
         .df()["month"]
         .tolist()
     )
+    ctx = make_build_context(all_months)
 
-    complete_months = [m for m in all_months if m < cur_ym][-TIER.avg_months :]
-    avg_days = avg_per_month(complete_months)
-
-    work_thr = _make_thresholds(FEATURE_THRESHOLDS, avg_days)
-    wd_monthly = build_monthly(all_months)
-
-    this_monday = today - timedelta(days=today.weekday())
-    weeks = [this_monday - timedelta(weeks=i) for i in range(TIER.weekly_window)][::-1]
-    wd_weekly = build_weekly(weeks)
-
+    work_thr = make_thresholds(FEATURE_THRESHOLDS, ctx.avg_days)
     conn.register("_sp_work_thr", work_thr)
-    conn.register("_sp_wd_monthly", wd_monthly)
-    conn.register("_sp_wd_weekly", wd_weekly)
+    conn.register("_sp_wd_monthly", ctx.wd_monthly)
+    conn.register("_sp_wd_weekly", ctx.wd_weekly)
 
     tier_params = {
         "rolling_months": TIER.rolling_months,
@@ -430,28 +402,17 @@ def build_keiei(
     conn: duckdb.DuckDBPyConnection,
 ) -> tuple[pd.DataFrame, pd.DataFrame]:
     """経営管理の単一プロダクト KPI を計算して (monthly_df, weekly_df) を返す。"""
-    today = date.today()
-    cur_ym = today.strftime("%Y-%m")
-
     all_months: list[str] = (
         conn.sql("SELECT DISTINCT month FROM keiei_feature_health ORDER BY month")
         .df()["month"]
         .tolist()
     )
+    ctx = make_build_context(all_months)
 
-    complete_months = [m for m in all_months if m < cur_ym][-TIER.avg_months :]
-    avg_days = avg_per_month(complete_months)
-
-    keiei_thr = _make_thresholds(KEIEI_FEATURE_THRESHOLDS, avg_days)
-    wd_monthly = build_monthly(all_months)
-
-    this_monday = today - timedelta(days=today.weekday())
-    weeks = [this_monday - timedelta(weeks=i) for i in range(TIER.weekly_window)][::-1]
-    wd_weekly = build_weekly(weeks)
-
+    keiei_thr = make_thresholds(KEIEI_FEATURE_THRESHOLDS, ctx.avg_days)
     conn.register("_sp_keiei_thr", keiei_thr)
-    conn.register("_sp_wd_monthly", wd_monthly)
-    conn.register("_sp_wd_weekly", wd_weekly)
+    conn.register("_sp_wd_monthly", ctx.wd_monthly)
+    conn.register("_sp_wd_weekly", ctx.wd_weekly)
 
     tier_params = {
         "rolling_months": TIER.rolling_months,

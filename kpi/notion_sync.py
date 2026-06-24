@@ -18,15 +18,13 @@ from typing import Any, cast
 
 import duckdb
 import pandas as pd
-import yaml  # type: ignore[import-untyped]
 from notion_client import Client
 
-from kpi.config import ChartEntry, GcpSettings
+from kpi.config import ChartEntry, GcpSettings, load_notion_config
 
 log = logging.getLogger(__name__)
 
 _ROOT = Path(__file__).parent.parent
-_CONFIG_PATH = _ROOT / "config.yml"
 _MONTH_RE = re.compile(r"^\d{4}-\d{2}$")
 _WEEK_RE = re.compile(r"^\d{2}-W\d+$")
 _COMBINED_RE = re.compile(r"^\d{4}-\d{2}(-W\d+)?$")
@@ -68,18 +66,16 @@ def _embed_exists(notion: Client, page_id: str, url: str) -> bool:
 
 def sync_all(conn: duckdb.DuckDBPyConnection) -> None:
     """config.yml の notion.outputs を全件同期する。"""
-    with _CONFIG_PATH.open() as f:
-        cfg = yaml.safe_load(f)
-
+    cfg = load_notion_config()
     notion: Client = Client(auth=os.environ["NOTION_API_KEY"])
-    months_to_show: int = cfg["notion"].get("months_to_show", 18)
+    months_to_show: int = cfg.months_to_show
 
-    for output in cfg["notion"]["outputs"]:
-        name: str = output["name"]
-        sql_path: Path = _ROOT / output["sql"]
-        db_id: str = output["db_id"]
-        ds_id: str = output["ds_id"]
-        time_col: str = output.get("time_col", "month")
+    for output in cfg.outputs:
+        name: str = output.name
+        sql_path: Path = _ROOT / output.sql
+        db_id: str = output.db_id
+        ds_id: str = output.ds_id
+        time_col: str = output.time_col
 
         log.info("[%s] 同期開始...", name)
         sql = sql_path.read_text()
