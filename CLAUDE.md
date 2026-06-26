@@ -120,19 +120,21 @@ lifecycle_stage の値:
 
 ---
 
-## 計測対象機能と閾値 (`config.yml` → `kpi/config.py` 経由で注入)
+## 計測対象機能と閾値
 
-| 機能 | good | normal | bad | データソース |
-|------|------|--------|-----|------------|
-| 工程作成 | ≥10 | ≥5 | <5 | large_processes + small_processes (合算) |
-| 出面 | ≥10 | ≥5 | <5 | attendances |
-| 出来高 | ≥10 | ≥5 | <5 | progress_updated_on |
-| 掲示板 | ≥10 | ≥5 | <5 | board_posts (`content='掲示板'`) |
-| 日報 | ≥10 | ≥5 | <5 | daily_reports (全件、写真有無問わず) |
-| 報告書 | ≥10 | ≥5 | <5 | reports (99% が写真付き) |
-| AIアシスタント | ≥10 | ≥5 | <5 | ai_logs WHERE tag='start_session' → `ai_user_history` |
-| 写真アップロード | ≥10 | ≥5 | <5 | contents WHERE type='Content::Image' → `contents_user_history` |
-| フォルダ作成 | ≥2 | ≥1 | <1 | contents WHERE type='Content::Directory' AND root_model IS NULL → `contents_user_history` |
+⚠️ **閾値の正値は `config.yml` の `kpi.feature_thresholds` が唯一のソース。CLAUDE.md に数値を書かない。**
+
+| 機能 | データソース |
+|------|------------|
+| 工程作成 | large_processes + small_processes (合算) |
+| 出面 | attendances |
+| 出来高 | progress_updated_on |
+| 掲示板 | board_posts |
+| 日報 | daily_reports (全件、写真有無問わず) |
+| 報告書 | reports (99% が写真付き) |
+| AIアシスタント | ai_logs WHERE tag='start_session' → `ai_user_history` |
+| 写真アップロード | contents WHERE type='Content::Image' → `contents_user_history` |
+| フォルダ作成 | contents WHERE type='Content::Directory' AND root_model IS NULL → `contents_user_history` |
 
 ### ⚠️ 掲示板 (旧: ホワイトボード)
 
