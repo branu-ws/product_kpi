@@ -99,9 +99,18 @@ SELECT
   bp.created_at AS content_date,
   bp.id         AS source_id,
   NULL          AS user_id,
-  NULL          AS platform
+  CASE
+    WHEN MAX(CASE WHEN img.device_uuid IS NOT NULL AND img.device_uuid != '' THEN 1 ELSE 0 END) = 1 THEN 'app'
+    WHEN MAX(CASE WHEN img.id IS NOT NULL THEN 1 ELSE 0 END) = 1 THEN 'browser'
+    ELSE NULL
+  END           AS platform
 FROM board_posts bp
+LEFT JOIN content_resources cr
+  ON cr.resource_id = bp.id AND cr.resource_type = 'BoardPost'
+LEFT JOIN contents img
+  ON img.id = cr.content_id AND img.type = 'Content::Image'
 WHERE bp.project_id IS NOT NULL
+GROUP BY bp.project_id, bp.created_at, bp.id
 """
 
 
