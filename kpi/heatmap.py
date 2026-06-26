@@ -6,7 +6,6 @@ build_heatmap(df, thresholds, feature_order, feature_label, title, out_path)
 
 import json
 from pathlib import Path
-from typing import Any
 
 import numpy as np
 import plotly.graph_objects as go
@@ -20,10 +19,11 @@ COLORSCALE = [
     [1.0, "#1e3a8a"],  # good  : ロイヤルブルー
 ]
 
-FIXED_PER_H = 57   # px / company block (全プロダクト統一 = keiei 19ヶ月 × 3px)
-COL_W       = 124  # px / feature column (全プロダクト統一)
+FIXED_PER_H = 57   # px / company block
+COL_W       = 90   # px / feature column (124→90 で幅を縮小)
 GAP_H    = 6
-MARGIN_L = 150
+MARGIN_L = 150     # Plotly 内部の左余白 (固定名前列が被さる)
+NAME_COL_W = 148   # 左固定社名列の幅 (px)
 MARGIN_R = 40
 MARGIN_T = 60
 MARGIN_B = 20
@@ -73,8 +73,8 @@ def build_heatmap(
 
     n_comp       = len(companies)
     n_months     = len(all_months)
-    PLOT_W       = MARGIN_L + len(features) * COL_W + MARGIN_R  # 機能数で自動決定
-    per_h        = FIXED_PER_H                                   # 企業ブロック高さ固定
+    PLOT_W       = MARGIN_L + len(features) * COL_W + MARGIN_R
+    per_h        = FIXED_PER_H
     total_data_h = n_comp * per_h + (n_comp - 1) * GAP_H
     total_h      = total_data_h + MARGIN_T + MARGIN_B
 
@@ -112,25 +112,6 @@ def build_heatmap(
             ),
             xgap=6, ygap=0,
         ), row=ci + 1, col=1)
-
-    # 社名を左アノテーション
-    for ci, company in enumerate(companies):
-        idx = ci + 1
-        suf = "" if idx == 1 else str(idx)
-        yax = fig.layout[f"yaxis{suf}"]
-        y_center = (
-            (yax.domain[0] + yax.domain[1]) / 2
-            if yax.domain is not None
-            else 1 - (ci + 0.5) / n_comp
-        )
-        fig.add_annotation(
-            x=0, y=y_center, xref="paper", yref="paper",
-            text=f"<b>{_wrap_name(company)}</b>",
-            showarrow=False, xanchor="right", yanchor="middle",
-            textangle=0, xshift=-6,
-            font=dict(size=12, color="#1a2035",
-                      family="Inter, Noto Sans JP, sans-serif"),
-        )
 
     # パネルごとのうっすらグレー背景
     for ci in range(n_comp):
@@ -170,19 +151,22 @@ def build_heatmap(
         margin=dict(t=MARGIN_T, b=MARGIN_B, l=MARGIN_L, r=MARGIN_R),
     )
 
-    # スクロール位置を事前計算
-    company_scroll = {}
+    # スクロール位置 + 固定名前列の Y 座標を計算
+    company_scroll  = {}
+    company_page_y  = {}
     for ci, company in enumerate(companies):
         idx = ci + 1
         suf = "" if idx == 1 else str(idx)
         yax = fig.layout[f"yaxis{suf}"]
         if yax.domain:
-            y_from_top = MARGIN_T + (1 - yax.domain[1]) * total_data_h
-            company_scroll[company] = max(0, int(HEADER_H + y_from_top - 16))
+            y_top    = MARGIN_T + (1 - yax.domain[1]) * total_data_h
+            y_center = MARGIN_T + (1 - (yax.domain[0] + yax.domain[1]) / 2) * total_data_h
+            company_scroll[company] = max(0, int(HEADER_H + y_top - 16))
+            company_page_y[company] = HEADER_H + y_center
 
     html = fig.to_html(include_plotlyjs="cdn", full_html=True)
 
-    # Sticky ヘッダー
+    # ── Sticky ヘッダー (機能名) ──────────────────────────────────────────
     plot_area_w = PLOT_W - MARGIN_L - MARGIN_R
     col_w       = plot_area_w / len(features)
     label_items = ""
@@ -192,8 +176,8 @@ def build_heatmap(
         label_items += (
             f'<div style="position:absolute;left:{cx:.1f}px;'
             f'transform:translateX(-50%);bottom:6px;width:{col_w:.0f}px;'
-            f'text-align:center;line-height:1.4;font-size:11px;font-weight:500;'
-            f'letter-spacing:0.02em;'
+            f'text-align:center;line-height:1.3;font-size:10px;font-weight:500;'
+            f'letter-spacing:0.01em;white-space:normal;word-break:break-all;'
             f'font-family:\'Inter\',\'Noto Sans JP\',sans-serif;color:#2c3e60;">'
             f"{display}</div>"
         )
@@ -210,6 +194,47 @@ def build_heatmap(
         f"{label_items}</div></div>"
     )
 
+    # ── 左固定社名列 ──────────────────────────────────────────────────────
+    name_items = ""
+    for company in companies:
+        py = company_page_y.get(company, 0)
+        name_items += (
+            f'<div style="position:absolute;top:{py:.1f}px;left:0;right:6px;'
+            f'text-align:right;transform:translateY(-50%);'
+            f'font-size:11px;font-weight:600;color:#1a2035;line-height:1.35;'
+            f'font-family:\'Inter\',\'Noto Sans JP\',sans-serif;">'
+            f'{_wrap_name(company)}</div>'
+        )
+
+    name_col = (
+        f'<div id="name-col" style="position:fixed;left:0;top:0;width:{NAME_COL_W}px;'
+        f'height:100vh;overflow:hidden;background:white;z-index:250;'
+        f'box-shadow:2px 0 6px rgba(0,0,0,0.05);border-right:1px solid rgba(0,0,0,0.07);">'
+        # ヘッダー高さと合わせた上部スペース
+        f'<div style="height:{HEADER_H}px;background:white;'
+        f'border-bottom:1px solid rgba(0,0,0,0.08);'
+        f'box-shadow:0 2px 12px rgba(0,0,0,0.06);'
+        f'display:flex;align-items:flex-end;justify-content:flex-end;'
+        f'padding:0 8px 6px;box-sizing:border-box;">'
+        f'<span style="font-size:9px;color:#8a9ab5;'
+        f'font-family:\'Inter\',\'Noto Sans JP\',sans-serif;letter-spacing:0.04em;">'
+        f'会社名</span></div>'
+        # スクロール追従するコンテナ
+        f'<div id="name-inner" style="position:absolute;left:0;right:0;top:{HEADER_H}px;">'
+        f'{name_items}'
+        f'</div>'
+        f'</div>'
+        f'<script>'
+        f'(function(){{'
+        f'  var inner=document.getElementById("name-inner");'
+        f'  window.addEventListener("scroll",function(){{'
+        f'    inner.style.top=({HEADER_H}-window.scrollY)+"px";'
+        f'  }},{{passive:true}});'
+        f'}})();'
+        f'</script>'
+    )
+
+    # ── 顧客検索ウィジェット ──────────────────────────────────────────────
     options_html   = "\n".join(
         f'<option value="{i}">{c}</option>' for i, c in enumerate(companies)
     )
@@ -259,7 +284,7 @@ def build_heatmap(
 </script>"""
 
     html = html.replace("<body>", "<body>\n" + sticky_header)
-    html = html.replace("</body>", widget + "\n</body>")
+    html = html.replace("</body>", name_col + widget + "\n</body>")
     out_path.parent.mkdir(parents=True, exist_ok=True)
     out_path.write_text(html, encoding="utf-8")
     print(f"出力: {out_path}  ({n_comp}社 / {n_months}ヶ月 / {total_h}px)")
