@@ -87,6 +87,16 @@ WHERE CAREECON_Plus__c = true
   AND CAREECON_Plus_Cancel__c = false
 """
 
+_SF_ALL_PLUS_SOQL = """
+SELECT
+    Name,
+    CAREECON_CID__c,
+    BillingState,
+    BillingCity
+FROM Account
+WHERE CAREECON_Plus__c = true
+"""
+
 _SF_MINI_SOQL = """
 SELECT
     Name,
@@ -276,6 +286,16 @@ def _fetch(client: httpx.Client, soql: str) -> pd.DataFrame:
 def fetch(client: httpx.Client) -> pd.DataFrame:
     """Plus アクティブ顧客を返す DataFrame。列: company_uuid, sf_company_name"""
     return _fetch(client, _SF_SOQL)
+
+
+def fetch_plus_historical(client: httpx.Client) -> pd.DataFrame:
+    """Plus 顧客を解約済み含めて全件返す DataFrame (歴史的ホワイトリスト用)。
+
+    customer_lifecycle の active_ranked ホワイトリストに使用する。
+    解約済み顧客を含めることで、過去アクティブ月の履歴が正しく復元される。
+    列: company_uuid, sf_company_name
+    """
+    return _fetch(client, _SF_ALL_PLUS_SOQL)
 
 
 def fetch_mini(client: httpx.Client) -> pd.DataFrame:

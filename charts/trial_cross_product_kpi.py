@@ -218,7 +218,7 @@ work_weekly AS (
         COUNT(*) AS usage_count
     FROM work_user_history h
     JOIN work_process_id_generator p ON h.pid = p.pid
-    WHERE h.content IN ('大工程', '小工程', '出面', '出来高', 'ホワイトボード', '日報', '報告書')
+    WHERE h.content IN ('大工程', '小工程', '出面', '出来高', '掲示板', '日報', '報告書')
       AND h.content_date >= CURRENT_DATE - INTERVAL '84 days'
       AND p.company_uuid IN (SELECT company_uuid FROM active_companies)
     GROUP BY week_start, p.company_uuid, feature

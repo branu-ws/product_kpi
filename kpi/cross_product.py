@@ -87,21 +87,21 @@ rolling AS (
         *,
         COUNT(*) OVER (
             PARTITION BY company_uuid ORDER BY usage_month
-            ROWS BETWEEN {rolling_preceding} PRECEDING AND CURRENT ROW
+            ROWS BETWEEN {rolling_months} PRECEDING AND 1 PRECEDING
         ) AS window_size,
         MIN(
             CASE WHEN work_score >= {xp_min} AND keiei_score >= {xp_min}
                  THEN 1 ELSE 0 END
         ) OVER (
             PARTITION BY company_uuid ORDER BY usage_month
-            ROWS BETWEEN {rolling_preceding} PRECEDING AND CURRENT ROW
+            ROWS BETWEEN {rolling_months} PRECEDING AND 1 PRECEDING
         ) AS fan_all3,
         MIN(
             CASE WHEN work_score >= {xp_min} OR keiei_score >= {xp_min}
                  THEN 1 ELSE 0 END
         ) OVER (
             PARTITION BY company_uuid ORDER BY usage_month
-            ROWS BETWEEN {rolling_preceding} PRECEDING AND CURRENT ROW
+            ROWS BETWEEN {rolling_months} PRECEDING AND 1 PRECEDING
         ) AS proactive_all3
     FROM combined
 )
@@ -128,17 +128,13 @@ ORDER BY usage_month, company_name
 """
 
 _WEEKLY_SQL = """
-WITH active_companies AS (
-    SELECT DISTINCT company_uuid
-    FROM customer_lifecycle
-    WHERE plan_type IN ({plan_filter})
-      AND lifecycle_stage != 'retired'
-      AND month = (SELECT MAX(month) FROM customer_lifecycle)
-),
-all_week_company AS (
-    SELECT wd.week_start, ac.company_uuid
+WITH all_week_company AS (
+    SELECT wd.week_start, cl.company_uuid
     FROM _cp_wd_weekly wd
-    CROSS JOIN active_companies ac
+    JOIN customer_lifecycle cl
+        ON STRFTIME(DATE_TRUNC('month', wd.week_start + INTERVAL '6 days'), '%Y-%m') = cl.month
+    WHERE cl.plan_type IN ({plan_filter})
+      AND cl.lifecycle_stage != 'retired'
 ),
 work_raw AS (
     SELECT
@@ -150,10 +146,10 @@ work_raw AS (
     FROM work_user_history h
     JOIN work_process_id_generator p ON h.pid = p.pid
     WHERE h.content IN (
-        '大工程', '小工程', '出面', '出来高', 'ホワイトボード', '日報', '報告書'
+        '大工程', '小工程', '出面', '出来高', '掲示板', '日報', '報告書'
     )
       AND h.content_date >= (SELECT MIN(week_start) FROM _cp_wd_weekly)
-      AND p.company_uuid IN (SELECT company_uuid FROM active_companies)
+      AND p.company_uuid IN (SELECT DISTINCT company_uuid FROM all_week_company)
     GROUP BY week_start, p.company_uuid, feature
 ),
 keiei_raw AS (
@@ -165,7 +161,7 @@ keiei_raw AS (
     FROM keiei_user_history h
     WHERE h.content IN (SELECT feature FROM _cp_keiei_thr)
       AND h.content_date >= (SELECT MIN(week_start) FROM _cp_wd_weekly)
-      AND h.company_uuid IN (SELECT company_uuid FROM active_companies)
+      AND h.company_uuid IN (SELECT DISTINCT company_uuid FROM all_week_company)
     GROUP BY week_start, h.company_uuid, h.content
 ),
 work_scores AS (

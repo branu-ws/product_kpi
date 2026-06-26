@@ -13,12 +13,12 @@
 
 | 機能 | good | normal | bad |
 |------|------|--------|-----|
-| 工程作成 | ≥ 20 件/月 | ≥ 5 件/月 | < 5 件/月 |
-| 出面 | ≥ 10 件/月 | ≥ 3 件/月 | < 3 件/月 |
-| 出来高 | ≥ 10 件/月 | ≥ 3 件/月 | < 3 件/月 |
-| ホワイトボード | ≥ 10 件/月 | ≥ 3 件/月 | < 3 件/月 |
-| 日報 | ≥ 10 件/月 | ≥ 3 件/月 | < 3 件/月 |
-| 報告書 | ≥ 10 件/月 | ≥ 3 件/月 | < 3 件/月 |
+| 工程作成 | ≥ 10 件/月 | ≥ 5 件/月 | < 5 件/月 |
+| 出面 | ≥ 10 件/月 | ≥ 5 件/月 | < 5 件/月 |
+| 出来高 | ≥ 10 件/月 | ≥ 5 件/月 | < 5 件/月 |
+| 掲示板 | ≥ 10 件/月 | ≥ 5 件/月 | < 5 件/月 |
+| 日報 | ≥ 10 件/月 | ≥ 5 件/月 | < 5 件/月 |
+| 報告書 | ≥ 10 件/月 | ≥ 5 件/月 | < 5 件/月 |
 
 ### 経営管理（8 機能）
 
@@ -85,9 +85,9 @@ feature_score の合計値で利用の深さを 3 段階に分類する。
 
 | ラベル | 条件 | 意味 |
 |--------|------|------|
-| **good** | feature_score ≥ 5 | 複数機能を密に利用 |
-| **normal** | feature_score ≥ 3 | 一部機能を利用 |
-| **bad** | feature_score < 3 | ほぼ未活用 |
+| **good** | feature_score ≥ 4 | 複数機能を密に利用 |
+| **normal** | feature_score ≥ 2 | 一部機能を利用 |
+| **bad** | feature_score < 2 | ほぼ未活用 |
 
 ---
 
@@ -126,8 +126,8 @@ kpi:
     avg_months:           12   # 稼働日平均の算出に使う参照月数
     fan_feature_min:       2   # ファン: normal+ 機能数の最小値
     proactive_feature_min: 1   # 自走: normal+ 機能数の最小値
-    usage_freq_good:       5   # usage_freq good の feature_score 閾値
-    usage_freq_normal:     3   # usage_freq normal の feature_score 閾値
+    usage_freq_good:       4   # usage_freq good の feature_score 閾値
+    usage_freq_normal:     2   # usage_freq normal の feature_score 閾値
 
   feature_thresholds:          # 施工管理の機能別閾値（月間利用件数）
     出面: {good_min: 10, normal_min: 3}

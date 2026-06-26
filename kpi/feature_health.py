@@ -19,6 +19,30 @@ def _build_work(
     )
     conn.register("_thresholds", thresholds_df)
 
+    tables = {r[0] for r in conn.execute("SHOW TABLES").fetchall()}
+
+    def _company_uuid_union(table: str) -> str:
+        if table not in tables:
+            return ""
+        return f"""
+        UNION ALL
+        SELECT
+            strftime(h.content_date, '%Y-%m') AS month,
+            h.company_uuid,
+            c.company_name,
+            h.content AS feature,
+            COUNT(*) AS usage_count
+        FROM {table} AS h
+        INNER JOIN companies AS c ON h.company_uuid = c.company_uuid
+        WHERE h.content IN (SELECT feature FROM _thresholds)
+        GROUP BY month, h.company_uuid, c.company_name, feature
+        """
+
+    ai_union = (
+        _company_uuid_union("ai_user_history")
+        + _company_uuid_union("contents_user_history")
+    )
+
     result: pd.DataFrame = conn.sql(f"""
         WITH monthly_usage AS (
             SELECT
@@ -34,9 +58,10 @@ def _build_work(
             INNER JOIN work_process_id_generator AS p ON h.pid = p.pid
             INNER JOIN companies AS c ON p.company_uuid = c.company_uuid
             WHERE h.content IN (
-                '大工程', '小工程', '出面', '出来高', 'ホワイトボード', '日報', '報告書'
+                '大工程', '小工程', '出面', '出来高', '掲示板', '日報', '報告書'
             )
             GROUP BY month, p.company_uuid, c.company_name, feature
+            {ai_union}
         ),
         all_months AS (
             SELECT DISTINCT strftime(content_date, '%Y-%m') AS month

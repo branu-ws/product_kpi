@@ -3,7 +3,10 @@ kpi:
     工程作成:       {good_min: 10, normal_min: 5}
     出面:           {good_min: 10, normal_min: 5}
     出来高:         {good_min: 10, normal_min: 5}
-    ホワイトボード: {good_min: 10, normal_min: 5}
+    掲示板:         {good_min: 10, normal_min: 5}
+    AIアシスタント: {good_min: 10, normal_min: 5}
+    写真アップロード: {good_min: 10, normal_min: 5}
+    フォルダ作成:   {good_min:  5, normal_min: 2}
     日報:           {good_min: 10, normal_min: 5}
     報告書:         {good_min: 10, normal_min: 5}
   keiei_feature_thresholds:
@@ -17,7 +20,7 @@ kpi:
     原価ページPV:       {good_min: 2, normal_min: 1}
   tier:
     rolling_months:        3   # fan/proactive 判定のローリング期間 (月)
-    weekly_window:        12   # 週次表示・スコア正規化の対象週数
+    weekly_window:        90   # 週次表示・スコア正規化の対象週数
     avg_months:           12   # 稼働日平均の参照月数 (日次閾値の基準)
     fan_feature_min:       2   # 単一プロダクト fan: normal 以上の機能数の最小値
     proactive_feature_min: 1   # 単一プロダクト proactive: 同上
@@ -57,9 +60,21 @@ gcp:
 notion:
   months_to_show: 18    # 横展開する月数
   charts:
-    - name: "xproduct_segment_trend"
-      script: "scripts/plot_xproduct_segment_trend.py"
-      html: "output/html/xproduct_segment_trend.html"
+    - name: "xproduct_tier_trend"
+      script: "charts/plot_xproduct_tier_trend.py"
+      html: "output/html/xproduct_tier_trend.html"
+      page_id: "3899cbb2-3130-8027-8849-f02d924701b7"
+    - name: "xproduct_tier_health_trend_weekly"
+      script: "charts/plot_xproduct_tier_health_trend_weekly.py"
+      html: "output/html/xproduct_tier_health_trend_weekly.html"
+      page_id: "3899cbb2-3130-8027-8849-f02d924701b7"
+    - name: "xproduct_segment_trend_weekly"
+      script: "charts/plot_xproduct_segment_trend_weekly.py"
+      html: "output/html/xproduct_segment_trend_weekly.html"
+      page_id: "3899cbb2-3130-8027-8849-f02d924701b7"
+    - name: "xproduct_segment_trend_quarterly"
+      script: "charts/plot_xproduct_segment_trend_quarterly.py"
+      html: "output/html/xproduct_segment_trend_quarterly.html"
       page_id: "3899cbb2-3130-8027-8849-f02d924701b7"
   outputs:
     - name: "cross_product"

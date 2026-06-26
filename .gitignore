@@ -230,7 +230,7 @@ tempCodeRunnerFile.py
 # Local cache / outputs
 cache.duckdb
 output.csv
-output/csv/
+output/
 
 # PyPI configuration file
 .pypirc

@@ -19,6 +19,7 @@ df = conn.sql("""
         integration_tier,
         COUNT(*) AS company_count
     FROM cross_product_monthly_company
+    WHERE usage_month >= '2025-01'
     GROUP BY usage_month, integration_tier
     ORDER BY usage_month, integration_tier
 """).df()
@@ -49,7 +50,8 @@ pivot = (
     .fillna(0)
     .astype(int)
 )
-months = pivot.index.tolist()
+# YYYY-MM → YYYY-MM-01 に変換して date 軸として扱う (rangeslider に必要)
+months = [m + "-01" for m in pivot.index.tolist()]
 
 # ---------- Figure ----------
 fig = go.Figure()
@@ -90,9 +92,22 @@ fig.update_layout(
     ),
     xaxis=dict(
         title="月",
+        type="date",
+        tickformat="%Y-%m",
         tickangle=-45,
         showgrid=True,
         gridcolor="#eeeeee",
+        rangeslider=dict(visible=True, thickness=0.08),
+        rangeselector=dict(
+            buttons=[
+                dict(count=6,  label="6ヶ月", step="month", stepmode="backward"),
+                dict(count=12, label="1年",   step="month", stepmode="backward"),
+                dict(count=24, label="2年",   step="month", stepmode="backward"),
+                dict(step="all", label="全期間"),
+            ],
+            bgcolor="#f5f5f5",
+            activecolor="#d0d0d0",
+        ),
     ),
     yaxis=dict(
         title="社数",
@@ -110,8 +125,8 @@ fig.update_layout(
     plot_bgcolor="white",
     paper_bgcolor="white",
     font=dict(family="Noto Sans JP, sans-serif", size=12),
-    margin=dict(t=100, b=80),
-    height=600,
+    margin=dict(t=100, b=40),
+    height=680,
     width=1000,
 )
 

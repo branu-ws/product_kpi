@@ -58,7 +58,15 @@ def _fetch_raw(
         ("users                    ", lambda: users.fetch(client)),
         ("keiei_user_history       ", lambda: keiei_user_history.fetch(client)),
         ("sf_customers             ", lambda: sf_customers.fetch(client)),
+        (
+            "sf_all_plus_customers    ",
+            lambda: sf_customers.fetch_plus_historical(client),
+        ),
         ("mini_sf_customers        ", lambda: sf_customers.fetch_mini(client)),
+        ("ai_user_history          ", lambda: work_user_history.fetch_ai(client)),
+        ("contents_user_history    ", lambda: work_user_history.fetch_contents(client)),
+        ("daily_report_photo       ", lambda: work_user_history.fetch_daily_report_attrs(client)),
+        ("report_attrs             ", lambda: work_user_history.fetch_report_attrs(client)),
     ]
     fetched: dict[str, pd.DataFrame] = {}
     with tqdm(fetch_tasks, bar_format=bar_fmt) as pbar:
@@ -66,9 +74,11 @@ def _fetch_raw(
             pbar.set_description(f"Redash  {name}")
             fetched[name.strip()] = fn()
 
-    # DS1 にない会社 (keiei-only など) の社名を SF 名で補完
-    sf_names = fetched["sf_customers"][["company_uuid", "sf_company_name"]].rename(
-        columns={"sf_company_name": "company_name"}
+    # DS1 にない会社 (keiei-only・解約済み含む) の社名を SF 名で補完
+    # sf_all_plus_customers で解約済み顧客の社名もカバーする
+    sf_names = (
+        fetched["sf_all_plus_customers"][["company_uuid", "sf_company_name"]]
+        .rename(columns={"sf_company_name": "company_name"})
     )
     fetched["companies"] = (
         pd.concat([fetched["companies"], sf_names], ignore_index=True)

@@ -63,9 +63,9 @@
 
 | ラベル | 条件 | 意味 |
 |--------|------|------|
-| **good** | total_score ≥ 5 | 複数機能を密に利用 |
-| **normal** | total_score ≥ 3 | 一部機能を利用 |
-| **bad** | total_score < 3 | ほぼ未活用 |
+| **good** | total_score ≥ 4 | 複数機能を密に利用 |
+| **normal** | total_score ≥ 2 | 一部機能を利用 |
+| **bad** | total_score < 2 | ほぼ未活用 |
 
 ---
 
@@ -111,8 +111,8 @@ kpi:
     weekly_window:      12   # 週次表示の対象週数
     avg_months:         12   # 稼働日平均の算出に使う参照月数
     xproduct_score_min:  1   # ファン/自走の条件となるプロダクトスコアの最小値
-    usage_freq_good:     5   # usage_freq good の total_score 閾値
-    usage_freq_normal:   3   # usage_freq normal の total_score 閾値
+    usage_freq_good:     4   # usage_freq good の total_score 閾値
+    usage_freq_normal:   2   # usage_freq normal の total_score 閾値
 
   feature_thresholds:          # 施工管理の機能別閾値
     出面: {good_min: 10, normal_min: 3}

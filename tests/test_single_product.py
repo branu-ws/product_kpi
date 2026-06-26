@@ -24,7 +24,7 @@ from tests.helpers import (
 )
 
 _UUID = "bbbb-0002"
-_MONTHS = ["2024-01", "2024-02", "2024-03"]
+_MONTHS = ["2024-01", "2024-02", "2024-03", "2024-04"]
 
 
 def _register_work(conn, fh: pd.DataFrame) -> None:
@@ -47,21 +47,21 @@ def _register_keiei(conn, kfh: pd.DataFrame) -> None:
 
 class TestWorkDiversityTier:
     def test_fan_when_2_features_normal_plus_3_months(self, conn):
-        # 出面(HIGH)+日報(HIGH) → normal_plus_count=2 ≥ fan_min=2 for 3 months → fan
+        # 出面(HIGH)+日報(HIGH) × 4ヶ月 → 4ヶ月目のTierは直前3完了月で判定 → fan
         fh = make_fh(_UUID, _MONTHS, {"出面": HIGH, "日報": HIGH})
         _register_work(conn, fh)
 
         monthly, _ = single_product.build_work(conn)
-        last = monthly[monthly["usage_month"] == "2024-03"]
+        last = monthly[monthly["usage_month"] == "2024-04"]
         assert last.iloc[0]["diversity_tier"] == "fan"
 
     def test_proactive_when_1_feature_normal_plus_3_months(self, conn):
-        # 出面(HIGH)のみ → normal_plus_count=1 ≥ pro_min=1, < fan_min=2 → proactive
+        # 出面(HIGH)のみ × 4ヶ月 → 4ヶ月目のTierは直前3完了月で判定 → proactive
         fh = make_fh(_UUID, _MONTHS, {"出面": HIGH})
         _register_work(conn, fh)
 
         monthly, _ = single_product.build_work(conn)
-        last = monthly[monthly["usage_month"] == "2024-03"]
+        last = monthly[monthly["usage_month"] == "2024-04"]
         assert last.iloc[0]["diversity_tier"] == "proactive"
 
     def test_passive_when_no_feature_normal_plus(self, conn):
@@ -121,7 +121,7 @@ class TestWorkDiversityTier:
         _register_work(conn, fh)
 
         monthly, _ = single_product.build_work(conn)
-        last = monthly[monthly["usage_month"] == "2024-03"]
+        last = monthly[monthly["usage_month"] == "2024-04"]
         # MID は both features で normal → normal_plus_count=2 → fan ✓
         assert last.iloc[0]["diversity_tier"] == "fan"
 
@@ -199,7 +199,7 @@ class TestKeieiDiversityTier:
         _register_keiei(conn, kfh)
 
         monthly, _ = single_product.build_keiei(conn)
-        last = monthly[monthly["usage_month"] == "2024-03"]
+        last = monthly[monthly["usage_month"] == "2024-04"]
         assert last.iloc[0]["diversity_tier"] == "fan"
 
     def test_proactive_when_1_keiei_feature_3_months(self, conn):
@@ -207,7 +207,7 @@ class TestKeieiDiversityTier:
         _register_keiei(conn, kfh)
 
         monthly, _ = single_product.build_keiei(conn)
-        last = monthly[monthly["usage_month"] == "2024-03"]
+        last = monthly[monthly["usage_month"] == "2024-04"]
         assert last.iloc[0]["diversity_tier"] == "proactive"
 
     def test_passive_when_no_keiei_feature_used(self, conn):

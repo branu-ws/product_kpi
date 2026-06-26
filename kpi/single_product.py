@@ -70,15 +70,15 @@ rolling AS (
         *,
         COUNT(*) OVER (
             PARTITION BY company_uuid ORDER BY usage_month
-            ROWS BETWEEN {rolling_preceding} PRECEDING AND CURRENT ROW
+            ROWS BETWEEN {rolling_months} PRECEDING AND 1 PRECEDING
         ) AS window_size,
         MIN(CASE WHEN normal_plus_count >= {fan_min} THEN 1 ELSE 0 END) OVER (
             PARTITION BY company_uuid ORDER BY usage_month
-            ROWS BETWEEN {rolling_preceding} PRECEDING AND CURRENT ROW
+            ROWS BETWEEN {rolling_months} PRECEDING AND 1 PRECEDING
         ) AS fan_all3,
         MIN(CASE WHEN normal_plus_count >= {pro_min} THEN 1 ELSE 0 END) OVER (
             PARTITION BY company_uuid ORDER BY usage_month
-            ROWS BETWEEN {rolling_preceding} PRECEDING AND CURRENT ROW
+            ROWS BETWEEN {rolling_months} PRECEDING AND 1 PRECEDING
         ) AS proactive_all3
     FROM work_deduped
 )
@@ -125,7 +125,7 @@ work_raw AS (
     FROM work_user_history h
     JOIN work_process_id_generator p ON h.pid = p.pid
     WHERE h.content IN (
-        '大工程', '小工程', '出面', '出来高', 'ホワイトボード', '日報', '報告書'
+        '大工程', '小工程', '出面', '出来高', '掲示板', '日報', '報告書'
     )
       AND h.content_date >= (SELECT MIN(week_start) FROM _sp_wd_weekly)
       AND p.company_uuid IN (SELECT company_uuid FROM active_companies)
@@ -224,15 +224,15 @@ rolling AS (
         *,
         COUNT(*) OVER (
             PARTITION BY company_uuid ORDER BY usage_month
-            ROWS BETWEEN {rolling_preceding} PRECEDING AND CURRENT ROW
+            ROWS BETWEEN {rolling_months} PRECEDING AND 1 PRECEDING
         ) AS window_size,
         MIN(CASE WHEN normal_plus_count >= {fan_min} THEN 1 ELSE 0 END) OVER (
             PARTITION BY company_uuid ORDER BY usage_month
-            ROWS BETWEEN {rolling_preceding} PRECEDING AND CURRENT ROW
+            ROWS BETWEEN {rolling_months} PRECEDING AND 1 PRECEDING
         ) AS fan_all3,
         MIN(CASE WHEN normal_plus_count >= {pro_min} THEN 1 ELSE 0 END) OVER (
             PARTITION BY company_uuid ORDER BY usage_month
-            ROWS BETWEEN {rolling_preceding} PRECEDING AND CURRENT ROW
+            ROWS BETWEEN {rolling_months} PRECEDING AND 1 PRECEDING
         ) AS proactive_all3
     FROM keiei_deduped
 )

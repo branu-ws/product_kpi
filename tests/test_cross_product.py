@@ -25,7 +25,7 @@ from tests.helpers import (
 )
 
 _UUID = "aaaa-0001"
-_MONTHS = ["2024-01", "2024-02", "2024-03"]
+_MONTHS = ["2024-01", "2024-02", "2024-03", "2024-04"]
 
 
 def _register(conn, fh: pd.DataFrame, kfh: pd.DataFrame) -> None:
@@ -43,12 +43,13 @@ def _register(conn, fh: pd.DataFrame, kfh: pd.DataFrame) -> None:
 
 class TestIntegrationTier:
     def test_fan_when_both_products_used_3_months(self, conn):
+        # 4ヶ月目のTierは直前3完了月で判定 → fan
         fh = make_fh(_UUID, _MONTHS, {"出面": HIGH})
         kfh = make_kfh(_UUID, _MONTHS, {"案件ステータス更新": HIGH})
         _register(conn, fh, kfh)
 
         monthly, _ = cross_product.build(conn)
-        last = monthly[monthly["usage_month"] == "2024-03"]
+        last = monthly[monthly["usage_month"] == "2024-04"]
         assert last.iloc[0]["integration_tier"] == "fan"
 
     def test_proactive_when_only_work_used_3_months(self, conn):
@@ -58,7 +59,7 @@ class TestIntegrationTier:
         _register(conn, fh, kfh)
 
         monthly, _ = cross_product.build(conn)
-        last = monthly[monthly["usage_month"] == "2024-03"]
+        last = monthly[monthly["usage_month"] == "2024-04"]
         assert last.iloc[0]["integration_tier"] == "proactive"
 
     def test_proactive_when_only_keiei_used_3_months(self, conn):
@@ -68,7 +69,7 @@ class TestIntegrationTier:
         _register(conn, fh, kfh)
 
         monthly, _ = cross_product.build(conn)
-        last = monthly[monthly["usage_month"] == "2024-03"]
+        last = monthly[monthly["usage_month"] == "2024-04"]
         assert last.iloc[0]["integration_tier"] == "proactive"
 
     def test_passive_when_window_less_than_3_months(self, conn):

@@ -18,7 +18,7 @@ import pandas as pd
 def build(
     conn: duckdb.DuckDBPyConnection,
     *,
-    sf_table: str = "sf_customers",
+    sf_table: str = "sf_all_plus_customers",
 ) -> pd.DataFrame:
     """customer_lifecycle DataFrame を生成する。
 
@@ -31,6 +31,51 @@ def build(
         if sf_table in tables
         else ""
     )
+    # CAS が finished / 未登録でも SF がアクティブなら active 扱いにするオーバーライド。
+    # Plus ビルドのみ。Mini は mini_sf_customers を使い別途管理。
+    sf_override_union = ""
+    if sf_table == "sf_all_plus_customers" and "sf_customers" in tables:
+        sf_override_union = """
+        UNION ALL
+        -- SF はアクティブだが CAS にその月をカバーする有効契約がない顧客
+        -- （Mini→Plus 移行タイムラグ等で CAS が遅れているケースへの対応）
+        SELECT
+            m.month,
+            sf.company_uuid,
+            comp.company_name,
+            'plus'                     AS plan_type,
+            earliest.earliest_start    AS start_date,
+            FALSE                      AS is_onboarding,
+            1                          AS rn
+        FROM all_months AS m
+        INNER JOIN sf_customers AS sf ON TRUE
+        INNER JOIN companies AS comp ON sf.company_uuid = comp.company_uuid
+        -- CAS に少なくとも 1 件の契約がある月以降のみ（完全新規は対象外）
+        INNER JOIN (
+            SELECT company_uuid, MIN(start_date) AS earliest_start
+            FROM contracts
+            GROUP BY company_uuid
+        ) AS earliest
+            ON  sf.company_uuid = earliest.company_uuid
+            AND strftime(earliest.earliest_start, '%Y-%m') <= m.month
+        WHERE m.month <= strftime(CURRENT_DATE, '%Y-%m')
+        AND NOT EXISTS (
+            SELECT 1 FROM contracts con2
+            WHERE con2.company_uuid = sf.company_uuid
+              AND strftime(con2.start_date, '%Y-%m') <= m.month
+              AND (
+                  (con2.status = 'active'
+                   AND (con2.end_date IS NULL
+                        OR strftime(con2.end_date, '%Y-%m') >= m.month))
+                  OR
+                  (con2.status = 'finished'
+                   AND con2.end_date IS NOT NULL
+                   AND strftime(con2.end_date, '%Y-%m') >= m.month
+                   AND strftime(con2.end_date, '%Y-%m')
+                       < strftime(CURRENT_DATE, '%Y-%m'))
+              )
+        )
+        """
     keiei_months_union = (
         """UNION
         SELECT DISTINCT strftime(content_date, '%Y-%m') AS month
@@ -71,15 +116,27 @@ def build(
                 ) AS rn
             FROM all_months AS m
             INNER JOIN contracts AS con
-                ON  strftime(con.start_date, '%Y-%m') <= m.month
-                AND (con.end_date IS NULL
-                     OR strftime(con.end_date, '%Y-%m') >= m.month)
-                AND con.status = 'active'
+                ON strftime(con.start_date, '%Y-%m') <= m.month
+                AND (
+                    -- 現在も継続中の契約
+                    (con.status = 'active'
+                     AND (con.end_date IS NULL
+                          OR strftime(con.end_date, '%Y-%m') >= m.month))
+                    OR
+                    -- 解約済みだがその月はアクティブだった契約
+                    -- (将来日付の finished は不正データなので除外)
+                    (con.status = 'finished'
+                     AND con.end_date IS NOT NULL
+                     AND strftime(con.end_date, '%Y-%m') >= m.month
+                     AND strftime(con.end_date, '%Y-%m')
+                         < strftime(CURRENT_DATE, '%Y-%m'))
+                )
             INNER JOIN companies AS comp ON con.company_uuid = comp.company_uuid
             {sf_join}
             INNER JOIN first_contract AS fc
                 ON  con.company_uuid = fc.company_uuid
                 AND con.plan_type    = fc.plan_type
+            {sf_override_union}
         ),
         active AS (
             SELECT * FROM active_ranked WHERE rn = 1

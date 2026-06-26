@@ -1,6 +1,12 @@
 -- 施工管理 (Mini) 単一プロダクト マトリクス (横持ち, Notion 用)
 -- 列: 過去完了月 = YYYY-MM, 今月の週 = YYYY-MM-W1 ...
-WITH monthly AS (
+-- mini_only: mini 契約あり かつ Plus 契約なし (Plus に寄せるため sf_customers から除外)
+WITH mini_only AS (
+    SELECT DISTINCT company_uuid FROM mini_customer_lifecycle
+    EXCEPT
+    SELECT company_uuid FROM sf_customers
+),
+monthly AS (
     SELECT
         usage_month AS month,
         COUNT(CASE WHEN diversity_tier = 'fan'        AND usage_freq = 'good'   THEN 1 END) AS ファン_good,
@@ -16,7 +22,8 @@ WITH monthly AS (
         COUNT(CASE WHEN diversity_tier = 'passive'    AND usage_freq = 'normal' THEN 1 END) AS 放置_normal,
         COUNT(CASE WHEN diversity_tier = 'passive'    AND usage_freq = 'bad'    THEN 1 END) AS 放置_bad
     FROM mini_work_monthly_company
-    WHERE usage_month < STRFTIME(CURRENT_DATE, '%Y-%m')
+    WHERE company_uuid IN (SELECT company_uuid FROM mini_only)
+      AND usage_month < STRFTIME(CURRENT_DATE, '%Y-%m')
     GROUP BY usage_month
 ),
 active_weeks AS (
@@ -49,6 +56,7 @@ weekly AS (
         COUNT(CASE WHEN cm.diversity_tier = 'passive'    AND cm.usage_freq = 'bad'    THEN 1 END) AS 放置_bad
     FROM mini_work_company_weekly cm
     JOIN week_labels wl ON cm.week_start = wl.week_start
+    WHERE cm.company_uuid IN (SELECT company_uuid FROM mini_only)
     GROUP BY wl.month
 )
 SELECT * FROM monthly

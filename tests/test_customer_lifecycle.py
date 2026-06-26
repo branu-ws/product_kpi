@@ -150,3 +150,25 @@ class TestRetired:
         )
         df = customer_lifecycle.build(conn)
         assert "retired" not in df["lifecycle_stage"].values
+
+    def test_finished_contract_appears_active_in_historical_months(self, conn):
+        """解約済み契約でも end_date 以前の月はアクティブとして扱われること。
+
+        修正前はすべての月で非表示 → 解約前の利用データが欠落していた。
+        """
+        uuid = "aaaa"
+        contracts = pd.DataFrame(
+            [_contract(uuid, "plus", "2024-01-01", "2024-02-28", "finished")]
+        )
+        _register(
+            conn, _companies(uuid), contracts, _history("2024-01", "2024-02", "2024-03")
+        )
+        df = customer_lifecycle.build(conn)
+        # end_date (2024-02) 以前はアクティブ (plus または onboarding-plus) であること
+        assert "2024-01" in df["month"].values
+        assert "2024-02" in df["month"].values
+        active_stages = {"plus", "onboarding-plus"}
+        assert df[df["month"] == "2024-01"]["lifecycle_stage"].iloc[0] in active_stages
+        assert df[df["month"] == "2024-02"]["lifecycle_stage"].iloc[0] in active_stages
+        # end_date の翌月は retired であること (既存テストと同じ)
+        assert df[df["month"] == "2024-03"]["lifecycle_stage"].iloc[0] == "retired"

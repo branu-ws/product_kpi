@@ -50,6 +50,7 @@ def generate_and_upload(charts: list[ChartEntry], gcp: GcpSettings) -> None:
 
         log.info("[chart:%s] GCS アップロード中...", chart.name)
         blob: storage.Blob = bucket.blob(html.name)
+        blob.cache_control = "no-cache, no-store, must-revalidate"
         blob.upload_from_filename(str(html), content_type="text/html")
         log.info(
             "[chart:%s] 完了: gs://%s/%s", chart.name, gcp.charts_bucket, html.name
