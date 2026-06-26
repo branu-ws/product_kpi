@@ -132,7 +132,7 @@ lifecycle_stage の値:
 | 報告書 | ≥10 | ≥5 | <5 | reports (99% が写真付き) |
 | AIアシスタント | ≥10 | ≥5 | <5 | ai_logs WHERE tag='start_session' → `ai_user_history` |
 | 写真アップロード | ≥10 | ≥5 | <5 | contents WHERE type='Content::Image' → `contents_user_history` |
-| フォルダ作成 | ≥5 | ≥2 | <2 | contents WHERE type='Content::Directory' AND root_model IS NULL → `contents_user_history` |
+| フォルダ作成 | ≥2 | ≥1 | <1 | contents WHERE type='Content::Directory' AND root_model IS NULL → `contents_user_history` |
 
 ### ⚠️ 掲示板 (旧: ホワイトボード)
 

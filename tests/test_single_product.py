@@ -161,7 +161,8 @@ class TestWorkUsageFreq:
 
     def test_mid_usage_gives_score_1_per_feature(self, conn):
         # 3 features xMID (score=1) = 3 → normal
-        fh = make_fh(_UUID, ["2024-01"], {"出面": MID, "日報": MID, "報告書": MID})
+        # good_min=10 の機能を選択 (日報=5/報告書=4 は MID=6 で good になるため除外)
+        fh = make_fh(_UUID, ["2024-01"], {"出面": MID, "掲示板": MID, "出来高": MID})
         _register_work(conn, fh)
 
         monthly, _ = single_product.build_work(conn)

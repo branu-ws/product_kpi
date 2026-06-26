@@ -37,7 +37,7 @@ def fetch_result(client: httpx.Client, result_id: int) -> list[dict[str, object]
 
 def poll_job(client: httpx.Client, job_id: str) -> list[dict[str, object]]:
     for _ in range(_POLL_MAX):
-        resp = client.get(f"{BASE_URL}/api/jobs/{job_id}", headers=_headers())
+        resp = client.get(f"{BASE_URL}/api/jobs/{job_id}", headers=_headers(), timeout=60)
         resp.raise_for_status()
         job = resp.json()["job"]
         status: int = job["status"]

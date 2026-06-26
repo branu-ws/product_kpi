@@ -1,7 +1,7 @@
 """Work Mini Fan / Proactive 顧客の機能別週次利用数を個社別に可視化する。
 
 対象  : mini_work_monthly_company で一度でも fan/proactive の会社
-facet : 機能 (工程作成 / ホワイトボード / 報告書 / 出面 / 日報 / 出来高)
+facet : 機能 (工程作成 / 掲示板 / 報告書 / 出面 / 日報 / 出来高 / AIアシスタント / 写真アップロード / フォルダ作成)
 color : 会社名
 UI    : 検索付きリストボックスで 1 社 or 全社を切り替え
 

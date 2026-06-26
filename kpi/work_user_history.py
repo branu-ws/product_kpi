@@ -116,8 +116,11 @@ SELECT
   cont.created_at AS content_date
 FROM contents cont
 JOIN companies comp ON cont.company_id = comp.id
-WHERE (cont.type = 'Content::Image')
-   OR (cont.type = 'Content::Directory' AND cont.root_model IS NULL)
+WHERE cont.created_at >= DATE_SUB(CURRENT_DATE, INTERVAL 2 YEAR)
+  AND (
+    (cont.type = 'Content::Image')
+    OR (cont.type = 'Content::Directory' AND cont.root_model IS NULL)
+  )
 """
 
 
@@ -128,15 +131,8 @@ def _to_df(rows: list[dict[str, object]]) -> pd.DataFrame:
 
 
 def fetch(client: httpx.Client) -> pd.DataFrame:
-    """work_user_history を取得して DataFrame で返す。
-
-    キャッシュ(query 914)があれば即返し、なければ SQL を直接実行する。
-    """
-    try:
-        rows = redash.run_saved_query(client, REDASH.saved_queries.work_user_history)
-    except RuntimeError:
-        rows = redash.run_adhoc_query(client, REDASH.data_sources.work, _SQL)
-
+    """work_user_history を取得して DataFrame で返す。"""
+    rows = redash.run_adhoc_query(client, REDASH.data_sources.work, _SQL)
     return _to_df(rows)
 
 
