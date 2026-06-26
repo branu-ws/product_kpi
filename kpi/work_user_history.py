@@ -113,7 +113,11 @@ SELECT
     WHEN cont.type = 'Content::Image'     THEN '写真アップロード'
     WHEN cont.type = 'Content::Directory' THEN 'フォルダ作成'
   END             AS content,
-  cont.created_at AS content_date
+  cont.created_at AS content_date,
+  CASE
+    WHEN cont.device_uuid IS NOT NULL AND cont.device_uuid != '' THEN 'app'
+    ELSE 'browser'
+  END             AS platform
 FROM contents cont
 JOIN companies comp ON cont.company_id = comp.id
 WHERE cont.created_at >= DATE_SUB(CURRENT_DATE, INTERVAL 2 YEAR)
