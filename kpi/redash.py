@@ -26,11 +26,16 @@ def get_data_source_id(client: httpx.Client, query_id: int) -> int:
 
 
 def fetch_result(client: httpx.Client, result_id: int) -> list[dict[str, object]]:
-    resp = client.get(
-        f"{BASE_URL}/api/query_results/{result_id}",
-        headers=_headers(),
-        timeout=120,
-    )
+    for attempt in range(3):
+        resp = client.get(
+            f"{BASE_URL}/api/query_results/{result_id}",
+            headers=_headers(),
+            timeout=120,
+        )
+        if resp.status_code < 500:
+            break
+        if attempt < 2:
+            time.sleep(10)
     resp.raise_for_status()
     return list(resp.json()["query_result"]["data"]["rows"])
 
