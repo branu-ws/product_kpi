@@ -44,11 +44,12 @@ def _wrap_name(name: str) -> str:
 
 
 def _to_score(count, feature, thresholds):
+    # None (その月のデータなし) と 0 (利用ゼロ) は両方 bad=0.0 で統一
     if count is None:
-        return np.nan
+        return 0.0
     t = thresholds.get(feature)
     if t is None:
-        return np.nan
+        return 0.0
     if count >= t.good_min:
         return 2.0
     if count >= t.normal_min:
