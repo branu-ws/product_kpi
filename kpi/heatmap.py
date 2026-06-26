@@ -162,7 +162,7 @@ def build_heatmap(
             y_top    = MARGIN_T + (1 - yax.domain[1]) * total_data_h
             y_center = MARGIN_T + (1 - (yax.domain[0] + yax.domain[1]) / 2) * total_data_h
             company_scroll[company] = max(0, int(HEADER_H + y_top - 16))
-            company_page_y[company] = HEADER_H + y_center
+            company_page_y[company] = y_center  # name-inner 自体が HEADER_H 分オフセット済み
 
     html = fig.to_html(include_plotlyjs="cdn", full_html=True)
 
