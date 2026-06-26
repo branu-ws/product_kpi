@@ -41,6 +41,8 @@ def sync_charts(charts: list[ChartEntry], gcp: GcpSettings) -> None:
     notion: Client = Client(auth=os.environ["NOTION_API_KEY"])
 
     for chart in charts:
+        if not chart.page_id:
+            continue
         url = f"https://storage.googleapis.com/{gcp.charts_bucket}/{Path(chart.html).name}"
         if _embed_exists(notion, chart.page_id, url):
             log.info("[chart:%s] embed ブロック既存のためスキップ", chart.name)

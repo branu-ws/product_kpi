@@ -57,7 +57,7 @@ class ChartEntry(BaseModel, frozen=True):
     name: str
     script: str
     html: str
-    page_id: str
+    page_id: str = ""  # Notion embed 先。空文字の場合は embed をスキップ
 
 
 class NotionOutputEntry(BaseModel, frozen=True):

@@ -6,9 +6,9 @@ kpi:
     掲示板:         {good_min: 10, normal_min: 5}
     AIアシスタント: {good_min: 10, normal_min: 5}
     写真アップロード: {good_min: 10, normal_min: 5}
-    フォルダ作成:   {good_min:  5, normal_min: 2}
-    日報:           {good_min: 10, normal_min: 5}
-    報告書:         {good_min: 10, normal_min: 5}
+    フォルダ作成:   {good_min:  2, normal_min: 1}
+    日報:           {good_min: 5, normal_min: 2}
+    報告書:         {good_min: 4, normal_min: 2}
   keiei_feature_thresholds:
     案件ステータス更新: {good_min: 2, normal_min: 1}
     見積原価登録:       {good_min: 2, normal_min: 1}
@@ -76,6 +76,41 @@ notion:
       script: "charts/plot_xproduct_segment_trend_quarterly.py"
       html: "output/html/xproduct_segment_trend_quarterly.html"
       page_id: "3899cbb2-3130-8027-8849-f02d924701b7"
+    - name: "xproduct_company_score_weekly"
+      script: "charts/plot_xproduct_company_score_weekly.py"
+      html: "output/html/xproduct_company_score_weekly.html"
+      page_id: "3899cbb2-3130-8027-8849-f02d924701b7"
+    - name: "xproduct_company_score_heatmap"
+      script: "charts/plot_xproduct_company_score_heatmap.py"
+      html: "output/html/xproduct_company_score_heatmap.html"
+      page_id: "3899cbb2-3130-8027-8849-f02d924701b7"
+    - name: "work_tier_health_trend_weekly"
+      script: "charts/plot_work_tier_health_trend_weekly.py"
+      html: "output/html/work_tier_health_trend_weekly.html"
+    - name: "work_company_feature_weekly"
+      script: "charts/plot_work_company_feature_weekly.py"
+      html: "output/html/work_company_feature_weekly.html"
+    - name: "work_company_feature_heatmap"
+      script: "charts/plot_work_company_feature_heatmap.py"
+      html: "output/html/work_company_feature_heatmap.html"
+    - name: "work_mini_tier_health_trend_weekly"
+      script: "charts/plot_work_mini_tier_health_trend_weekly.py"
+      html: "output/html/work_mini_tier_health_trend_weekly.html"
+    - name: "work_minicompany_feature_weekly"
+      script: "charts/plot_work_minicompany_feature_weekly.py"
+      html: "output/html/work_minicompany_feature_weekly.html"
+    - name: "work_minicompany_feature_heatmap"
+      script: "charts/plot_work_minicompany_feature_heatmap.py"
+      html: "output/html/work_minicompany_feature_heatmap.html"
+    - name: "keiei_tier_health_trend_weekly"
+      script: "charts/plot_keiei_tier_health_trend_weekly.py"
+      html: "output/html/keiei_tier_health_trend_weekly.html"
+    - name: "keiei_company_feature_weekly"
+      script: "charts/plot_keiei_company_feature_weekly.py"
+      html: "output/html/keiei_company_feature_weekly.html"
+    - name: "keiei_company_feature_heatmap"
+      script: "charts/plot_keiei_company_feature_heatmap.py"
+      html: "output/html/keiei_company_feature_heatmap.html"
   outputs:
     - name: "cross_product"
       sql: "collections/notion/cross_product/cross_product_combined_matrix.sql"
