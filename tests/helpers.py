@@ -39,6 +39,7 @@ def empty_work_history() -> pd.DataFrame:
             "content_date": pd.Series([], dtype="datetime64[ns]"),
             "source_id": pd.Series([], dtype="int64"),
             "user_id": pd.Series([], dtype="Int64"),
+            "platform": pd.Series([], dtype=str),
         }
     )
 

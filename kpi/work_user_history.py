@@ -10,7 +10,8 @@ SELECT
   '大工程'      AS content,
   lp.created_at AS content_date,
   lp.id         AS source_id,
-  NULL          AS user_id
+  NULL          AS user_id,
+  NULL          AS platform
 FROM large_processes lp
 JOIN schedules s ON s.id = lp.schedule_id
 
@@ -21,7 +22,8 @@ SELECT
   '小工程'      AS content,
   sp.created_at AS content_date,
   sp.id         AS source_id,
-  NULL          AS user_id
+  NULL          AS user_id,
+  NULL          AS platform
 FROM small_processes sp
 JOIN schedules s ON s.id = sp.schedule_id
 
@@ -32,7 +34,8 @@ SELECT
   '出来高'               AS content,
   lp.progress_updated_on AS content_date,
   lp.id                  AS source_id,
-  NULL                   AS user_id
+  NULL                   AS user_id,
+  NULL                   AS platform
 FROM large_processes lp
 JOIN schedules s ON s.id = lp.schedule_id
 WHERE lp.progress_updated_on IS NOT NULL
@@ -44,7 +47,8 @@ SELECT
   '出来高'               AS content,
   sp.progress_updated_on AS content_date,
   sp.id                  AS source_id,
-  NULL                   AS user_id
+  NULL                   AS user_id,
+  NULL                   AS platform
 FROM small_processes sp
 JOIN schedules s ON s.id = sp.schedule_id
 WHERE sp.progress_updated_on IS NOT NULL
@@ -56,7 +60,8 @@ SELECT
   '日報'               AS content,
   dr.construction_date AS content_date,
   dr.id                AS source_id,
-  u.id                 AS user_id
+  u.id                 AS user_id,
+  NULL                 AS platform
 FROM daily_reports dr
 JOIN users u ON u.uid = dr.uid
 
@@ -67,7 +72,8 @@ SELECT
   '出面'       AS content,
   a.work_date  AS content_date,
   a.id         AS source_id,
-  u.id         AS user_id
+  u.id         AS user_id,
+  CASE WHEN a.check_in_at IS NOT NULL THEN 'app' ELSE 'browser' END AS platform
 FROM attendances a
 JOIN users u ON u.id = a.user_id
 
@@ -78,7 +84,8 @@ SELECT
   '報告書'     AS content,
   r.created_at AS content_date,
   r.id         AS source_id,
-  u.id         AS user_id
+  u.id         AS user_id,
+  NULL         AS platform
 FROM reports r
 JOIN users u ON u.id = r.user_id
 WHERE r.project_id IS NOT NULL
@@ -91,7 +98,8 @@ SELECT
   '掲示板'      AS content,
   bp.created_at AS content_date,
   bp.id         AS source_id,
-  NULL          AS user_id
+  NULL          AS user_id,
+  NULL          AS platform
 FROM board_posts bp
 WHERE bp.project_id IS NOT NULL
 """
