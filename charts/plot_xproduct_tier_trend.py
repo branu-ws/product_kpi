@@ -5,7 +5,6 @@
 
 from pathlib import Path
 
-import pandas as pd
 import plotly.graph_objects as go
 
 import kpi.db as db
@@ -30,16 +29,16 @@ conn.close()
 TIER_ORDER = ["onboarding", "passive", "proactive", "fan"]
 
 TIER_COLOR = {
-    "fan":        "#1a6bb5",
-    "proactive":  "#2eaa6e",
-    "passive":    "#f0a500",
+    "fan": "#1a6bb5",
+    "proactive": "#2eaa6e",
+    "passive": "#f0a500",
     "onboarding": "#d94f3d",
 }
 
 TIER_LABEL = {
-    "fan":        "ファン (両PD × 3ヶ月継続)",
-    "proactive":  "プロアクティブ (いずれか × 3ヶ月継続)",
-    "passive":    "パッシブ",
+    "fan": "ファン (両PD × 3ヶ月継続)",
+    "proactive": "プロアクティブ (いずれか × 3ヶ月継続)",
+    "passive": "パッシブ",
     "onboarding": "オンボーディング",
 }
 
@@ -59,28 +58,32 @@ for tier in TIER_ORDER:
     if tier not in pivot.columns:
         continue
     counts = pivot[tier].tolist()
-    fig.add_trace(go.Scatter(
-        x=months,
-        y=counts,
-        name=TIER_LABEL[tier],
-        mode="lines",
-        stackgroup="one",
-        fillcolor=TIER_COLOR[tier],
-        line=dict(color=TIER_COLOR[tier], width=1),
-        hovertemplate="%{meta}<br>%{x}  %{y}社<extra></extra>",
-        meta=TIER_LABEL[tier],
-    ))
+    fig.add_trace(
+        go.Scatter(
+            x=months,
+            y=counts,
+            name=TIER_LABEL[tier],
+            mode="lines",
+            stackgroup="one",
+            fillcolor=TIER_COLOR[tier],
+            line=dict(color=TIER_COLOR[tier], width=1),
+            hovertemplate="%{meta}<br>%{x}  %{y}社<extra></extra>",
+            meta=TIER_LABEL[tier],
+        )
+    )
 
 total = pivot.sum(axis=1)
-fig.add_trace(go.Scatter(
-    x=months,
-    y=total.tolist(),
-    name="合計",
-    mode="lines+markers",
-    line=dict(color="#333333", width=2, dash="dot"),
-    marker=dict(size=5),
-    hovertemplate="合計<br>%{x}  %{y}社<extra></extra>",
-))
+fig.add_trace(
+    go.Scatter(
+        x=months,
+        y=total.tolist(),
+        name="合計",
+        mode="lines+markers",
+        line=dict(color="#333333", width=2, dash="dot"),
+        marker=dict(size=5),
+        hovertemplate="合計<br>%{x}  %{y}社<extra></extra>",
+    )
+)
 
 fig.update_layout(
     title=dict(
@@ -97,9 +100,9 @@ fig.update_layout(
         rangeslider=dict(visible=True, thickness=0.08),
         rangeselector=dict(
             buttons=[
-                dict(count=6,  label="6ヶ月", step="month", stepmode="backward"),
-                dict(count=12, label="1年",   step="month", stepmode="backward"),
-                dict(count=24, label="2年",   step="month", stepmode="backward"),
+                dict(count=6, label="6ヶ月", step="month", stepmode="backward"),
+                dict(count=12, label="1年", step="month", stepmode="backward"),
+                dict(count=24, label="2年", step="month", stepmode="backward"),
                 dict(step="all", label="全期間"),
             ],
             bgcolor="#f5f5f5",

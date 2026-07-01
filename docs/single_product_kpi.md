@@ -44,6 +44,15 @@
 
 稼働日正規化後の利用密度を点数に換算し、全機能を合算する。
 
+```
+feature_score (per feature) =
+  2  if  usage_count / working_days >= good_min / avg_days    (good)
+  1  if  usage_count / working_days >= normal_min / avg_days  (normal)
+  0  otherwise                                                 (bad)
+```
+
+`avg_days` = 過去12ヶ月の月平均稼働日（`avg_months` で設定）
+
 | 判定 | 点数 |
 |------|------|
 | good | 2 点 |
@@ -99,45 +108,9 @@ feature_score の合計値で利用の深さを 3 段階に分類する。
 
 ---
 
-## 具体例
-
-施工管理で、ある企業が以下の利用をした場合：
-
-| 月 | 出面 | 日報 | 工程作成 | その他 | normal+ 機能数 | feature_score |
-|----|------|------|---------|--------|--------------|--------------|
-| 2 ヶ月前 | 12 件 → good(2) | 5 件 → normal(1) | 0 件 → bad(0) | 0 | 2 | 3 |
-| 1 ヶ月前 | 15 件 → good(2) | 4 件 → normal(1) | 0 件 → bad(0) | 0 | 2 | 3 |
-| 今月 | 10 件 → good(2) | 3 件 → normal(1) | 2 件 → bad(0) | 0 | 2 | 3 |
-
-→ 3 ヶ月連続 `normal_plus_count ≥ 2` → **diversity_tier: ファン**  
-→ feature_score = 3 → **usage_freq: normal**
-
----
-
 ## config.yml で変更可能な設定
 
 以下の値はすべて `config.yml` を書き換えるだけで反映できる。**コードの変更は不要。**
-
-```yaml
-kpi:
-  tier:
-    rolling_months:        3   # ファン/自走の判定ウィンドウ（月数）
-    weekly_window:        12   # 週次表示の対象週数
-    avg_months:           12   # 稼働日平均の算出に使う参照月数
-    fan_feature_min:       2   # ファン: normal+ 機能数の最小値
-    proactive_feature_min: 1   # 自走: normal+ 機能数の最小値
-    usage_freq_good:       4   # usage_freq good の feature_score 閾値
-    usage_freq_normal:     2   # usage_freq normal の feature_score 閾値
-
-  feature_thresholds:          # 施工管理の機能別閾値（月間利用件数）
-    出面: {good_min: 10, normal_min: 3}
-    工程作成: {good_min: 20, normal_min: 5}
-    # ... 他機能も同形式
-
-  keiei_feature_thresholds:    # 経営管理の機能別閾値（月間利用件数）
-    案件ステータス更新: {good_min: 2, normal_min: 1}
-    # ... 他機能も同形式
-```
 
 ### 調整指針
 

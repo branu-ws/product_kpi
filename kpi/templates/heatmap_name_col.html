@@ -1,0 +1,9 @@
+<div id="name-col" style="position:fixed;left:0;top:0;width:${name_col_w}px;height:100vh;overflow:hidden;background:white;z-index:250;box-shadow:2px 0 6px rgba(0,0,0,0.05);border-right:1px solid rgba(0,0,0,0.07);"><div style="height:${header_h}px;background:white;border-bottom:1px solid rgba(0,0,0,0.08);box-shadow:0 2px 12px rgba(0,0,0,0.06);display:flex;align-items:flex-end;justify-content:flex-end;padding:0 8px 6px;box-sizing:border-box;"><span style="font-size:9px;color:#8a9ab5;font-family:'Inter','Noto Sans JP',sans-serif;letter-spacing:0.04em;">会社名</span></div><div id="name-inner" style="position:absolute;left:0;right:0;top:${header_h}px;">${name_items}</div></div>
+<script>
+(function(){
+  var inner=document.getElementById("name-inner");
+  window.addEventListener("scroll",function(){
+    inner.style.top=(${header_h}-window.scrollY)+"px";
+  },{passive:true});
+})();
+</script>

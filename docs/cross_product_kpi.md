@@ -88,41 +88,9 @@
 
 ---
 
-## 具体例
-
-| 企業 | work_score | keiei_score | total_score | 3 ヶ月連続? | integration_tier | usage_freq |
-|------|-----------|------------|-------------|-----------|----------------|-----------|
-| A 社 | 8 | 4 | 12 | 両方 ≥ 1 × 3 ヶ月 | **ファン** | good |
-| B 社 | 6 | 0 | 6 | 施工のみ ≥ 1 × 3 ヶ月 | **自走** | good |
-| C 社 | 4 | 0 | 4 | 先月スコア = 0 | **放置** | normal |
-| D 社 | 0 | 0 | 0 | — | **放置** | bad |
-| E 社 | 4 | 2 | 6 | オンボ中（3 ヶ月以内） | **オンボ中** | good ※優先 |
-
----
-
 ## config.yml で変更可能な設定
 
 以下の値はすべて `config.yml` を書き換えるだけで反映できる。**コードの変更は不要。**
-
-```yaml
-kpi:
-  tier:
-    rolling_months:      3   # ファン/自走の判定ウィンドウ（月数）
-    weekly_window:      12   # 週次表示の対象週数
-    avg_months:         12   # 稼働日平均の算出に使う参照月数
-    xproduct_score_min:  1   # ファン/自走の条件となるプロダクトスコアの最小値
-    usage_freq_good:     4   # usage_freq good の total_score 閾値
-    usage_freq_normal:   2   # usage_freq normal の total_score 閾値
-
-  feature_thresholds:          # 施工管理の機能別閾値
-    出面: {good_min: 10, normal_min: 3}
-    工程作成: {good_min: 20, normal_min: 5}
-    # ... 他機能も同形式
-
-  keiei_feature_thresholds:    # 経営管理の機能別閾値
-    案件ステータス更新: {good_min: 2, normal_min: 1}
-    # ... 他機能も同形式
-```
 
 ### 調整指針
 

@@ -47,7 +47,8 @@ COLORS = plotly.colors.qualitative.Alphabet
 
 # ---------- Figure ----------
 fig = make_subplots(
-    rows=2, cols=1,
+    rows=2,
+    cols=1,
     subplot_titles=["施工管理  (work_score)", "経営管理  (keiei_score)"],
     shared_xaxes=True,
     vertical_spacing=0.1,
@@ -63,40 +64,59 @@ for i, company in enumerate(companies):
         line=dict(color=color, width=1.8),
         connectgaps=False,
     )
-    fig.add_trace(go.Scatter(
-        x=cdf["week_start"], y=cdf["work_score"],
-        showlegend=False,
-        hovertemplate=f"{company}<br>%{{x}}  work: %{{y}}<extra></extra>",
-        **common,
-    ), row=1, col=1)
-    fig.add_trace(go.Scatter(
-        x=cdf["week_start"], y=cdf["keiei_score"],
-        showlegend=False,
-        hovertemplate=f"{company}<br>%{{x}}  keiei: %{{y}}<extra></extra>",
-        **common,
-    ), row=2, col=1)
+    fig.add_trace(
+        go.Scatter(
+            x=cdf["week_start"],
+            y=cdf["work_score"],
+            showlegend=False,
+            hovertemplate=f"{company}<br>%{{x}}  work: %{{y}}<extra></extra>",
+            **common,
+        ),
+        row=1,
+        col=1,
+    )
+    fig.add_trace(
+        go.Scatter(
+            x=cdf["week_start"],
+            y=cdf["keiei_score"],
+            showlegend=False,
+            hovertemplate=f"{company}<br>%{{x}}  keiei: %{{y}}<extra></extra>",
+            **common,
+        ),
+        row=2,
+        col=1,
+    )
 
 # アクティブ閾値ライン
 for row in [1, 2]:
     fig.add_hline(
         y=TIER.xproduct_score_min,
         line=dict(color="rgba(0,0,0,0.25)", width=1.2, dash="dot"),
-        row=row, col=1,
+        row=row,
+        col=1,
     )
 
 # x 軸ラベル（全行）
 months = pd.date_range(df["week_start"].min(), df["week_start"].max(), freq="MS")
 tick_vals = [int(m.timestamp() * 1000) for m in months]
 tick_text = [f"{m.strftime('%y')}-{m.month}" for m in months]
-fig.for_each_xaxis(lambda ax: ax.update(
-    showticklabels=True, matches=None, type="date",
-    tickvals=tick_vals, ticktext=tick_text, tickangle=0,
-    showgrid=True, gridcolor="#eeeeee",
-))
+fig.for_each_xaxis(
+    lambda ax: ax.update(
+        showticklabels=True,
+        matches=None,
+        type="date",
+        tickvals=tick_vals,
+        ticktext=tick_text,
+        tickangle=0,
+        showgrid=True,
+        gridcolor="#eeeeee",
+    )
+)
 
 fig.update_layout(
-    title=dict(text="X-PRODUCT Fan / Proactive 顧客  週次スコア推移",
-               font=dict(size=16), x=0.5),
+    title=dict(
+        text="X-PRODUCT Fan / Proactive 顧客  週次スコア推移", font=dict(size=16), x=0.5
+    ),
     hovermode="closest",
     plot_bgcolor="white",
     paper_bgcolor="white",
@@ -115,7 +135,7 @@ out_path = out_dir / "xproduct_company_score_weekly.html"
 
 html = fig.to_html(include_plotlyjs="cdn", full_html=True)
 
-options_html = '\n'.join(
+options_html = "\n".join(
     f'<option value="{i}">{c}</option>' for i, c in enumerate(companies)
 )
 companies_json = json.dumps(companies, ensure_ascii=False)

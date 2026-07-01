@@ -132,7 +132,8 @@ WITH all_week_company AS (
     SELECT wd.week_start, cl.company_uuid
     FROM _cp_wd_weekly wd
     JOIN customer_lifecycle cl
-        ON STRFTIME(DATE_TRUNC('month', wd.week_start + INTERVAL '6 days'), '%Y-%m') = cl.month
+        ON STRFTIME(DATE_TRUNC('month', wd.week_start + INTERVAL '6 days'), '%Y-%m')
+            = cl.month
     WHERE cl.plan_type IN ({plan_filter})
       AND cl.lifecycle_stage != 'retired'
 ),

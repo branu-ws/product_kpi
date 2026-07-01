@@ -5,15 +5,18 @@ color: good/normal/bad = TIER.usage_freq_good/normal 閾値で判定
 """
 
 from pathlib import Path
+
 import kpi.db as db
 from kpi.config import TIER
 from kpi.heatmap import build_heatmap
+
 
 # TIER スコア閾値を FeatureThreshold 互換オブジェクトで定義
 class _T:
     def __init__(self, good, normal):
         self.good_min = good
         self.normal_min = normal
+
 
 XPRODUCT_THRESHOLDS = {
     "施工管理": _T(TIER.usage_freq_good, TIER.usage_freq_normal),
@@ -51,7 +54,8 @@ build_heatmap(
     thresholds=XPRODUCT_THRESHOLDS,
     feature_order=["施工管理", "経営管理"],
     title="X-Product Fan / Proactive 顧客  月次スコアヒートマップ",
-    out_path=Path(__file__).parent.parent / "output/html/xproduct_company_score_heatmap.html",
+    out_path=Path(__file__).parent.parent
+    / "output/html/xproduct_company_score_heatmap.html",
     count_label="スコア",
     count_suffix="",
 )

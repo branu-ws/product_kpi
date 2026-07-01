@@ -38,9 +38,8 @@ def _build_work(
         GROUP BY month, h.company_uuid, c.company_name, feature
         """
 
-    ai_union = (
-        _company_uuid_union("ai_user_history")
-        + _company_uuid_union("contents_user_history")
+    ai_union = _company_uuid_union("ai_user_history") + _company_uuid_union(
+        "contents_user_history"
     )
 
     result: pd.DataFrame = conn.sql(f"""

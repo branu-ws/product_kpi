@@ -49,16 +49,16 @@ conn.close()
 TIER_ORDER = ["onboarding", "passive", "proactive", "fan"]
 
 TIER_COLOR = {
-    "fan":        "#1a6bb5",
-    "proactive":  "#2eaa6e",
-    "passive":    "#f0a500",
+    "fan": "#1a6bb5",
+    "proactive": "#2eaa6e",
+    "passive": "#f0a500",
     "onboarding": "#d94f3d",
 }
 
 TIER_LABEL = {
-    "fan":        "ファン (四半期内に1ヶ月以上 両PD)",
-    "proactive":  "プロアクティブ (四半期内に1ヶ月以上 いずれか)",
-    "passive":    "パッシブ",
+    "fan": "ファン (四半期内に1ヶ月以上 両PD)",
+    "proactive": "プロアクティブ (四半期内に1ヶ月以上 いずれか)",
+    "passive": "パッシブ",
     "onboarding": "オンボーディング",
 }
 
@@ -78,25 +78,29 @@ for tier in TIER_ORDER:
     if tier not in pivot.columns:
         continue
     counts = pivot[tier].tolist()
-    fig.add_trace(go.Bar(
-        x=quarters,
-        y=counts,
-        name=TIER_LABEL[tier],
-        marker_color=TIER_COLOR[tier],
-        hovertemplate="%{meta}<br>%{x}  %{y}社<extra></extra>",
-        meta=TIER_LABEL[tier],
-    ))
+    fig.add_trace(
+        go.Bar(
+            x=quarters,
+            y=counts,
+            name=TIER_LABEL[tier],
+            marker_color=TIER_COLOR[tier],
+            hovertemplate="%{meta}<br>%{x}  %{y}社<extra></extra>",
+            meta=TIER_LABEL[tier],
+        )
+    )
 
 total = pivot.sum(axis=1)
-fig.add_trace(go.Scatter(
-    x=quarters,
-    y=total.tolist(),
-    name="合計",
-    mode="lines+markers",
-    line=dict(color="#333333", width=2, dash="dot"),
-    marker=dict(size=6),
-    hovertemplate="合計<br>%{x}  %{y}社<extra></extra>",
-))
+fig.add_trace(
+    go.Scatter(
+        x=quarters,
+        y=total.tolist(),
+        name="合計",
+        mode="lines+markers",
+        line=dict(color="#333333", width=2, dash="dot"),
+        marker=dict(size=6),
+        hovertemplate="合計<br>%{x}  %{y}社<extra></extra>",
+    )
+)
 
 fig.update_layout(
     title=dict(

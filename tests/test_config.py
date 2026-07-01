@@ -63,7 +63,17 @@ class TestFeatureThresholds:
         assert thr.good_min > thr.normal_min > 0
 
     def test_all_work_features_present(self):
-        expected = {"工程作成", "出面", "出来高", "掲示板", "日報", "報告書", "AIアシスタント", "写真アップロード", "フォルダ作成"}
+        expected = {
+            "工程作成",
+            "出面",
+            "出来高",
+            "掲示板",
+            "日報",
+            "報告書",
+            "AIアシスタント",
+            "写真アップロード",
+            "フォルダ作成",
+        }
         assert set(FEATURE_THRESHOLDS.keys()) == expected
 
     def test_all_keiei_features_present(self):

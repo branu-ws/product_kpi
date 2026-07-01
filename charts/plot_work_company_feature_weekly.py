@@ -84,6 +84,7 @@ conn.close()
 # 月次閾値 ÷ 4.3 で週次近似
 WEEKS_PER_MONTH = 4.3
 
+
 def to_score(count, feature):
     if pd.isna(count):
         return None  # 線を切る
@@ -96,12 +97,23 @@ def to_score(count, feature):
         return 1
     return 0
 
+
 df["score"] = df.apply(lambda r: to_score(r["event_count"], r["feature"]), axis=1)
 
 # ---------- 表示設定 ----------
-FEATURE_ORDER = ["工程作成", "掲示板", "報告書", "出面", "日報", "出来高", "AIアシスタント", "写真アップロード", "フォルダ作成"]
+FEATURE_ORDER = [
+    "工程作成",
+    "掲示板",
+    "報告書",
+    "出面",
+    "日報",
+    "出来高",
+    "AIアシスタント",
+    "写真アップロード",
+    "フォルダ作成",
+]
 # データに存在する機能のみに絞り、順序を維持
-features  = [f for f in FEATURE_ORDER if f in df["feature"].unique()]
+features = [f for f in FEATURE_ORDER if f in df["feature"].unique()]
 companies = sorted(df["company_name"].unique())
 n_feat = len(features)
 n_comp = len(companies)
@@ -110,7 +122,8 @@ COLORS = plotly.colors.qualitative.Alphabet
 
 # ---------- Figure ----------
 fig = make_subplots(
-    rows=n_feat, cols=1,
+    rows=n_feat,
+    cols=1,
     subplot_titles=features,
     shared_xaxes=True,
     vertical_spacing=0.04,
@@ -122,27 +135,38 @@ for ci, company in enumerate(companies):
 
     for fi, feature in enumerate(features):
         fdf = cdf[cdf["feature"] == feature].sort_values("week_start")
-        fig.add_trace(go.Scatter(
-            x=fdf["week_start"],
-            y=fdf["score"],
-            name=company,
-            legendgroup=company,
-            showlegend=(fi == 0),
-            mode="lines",
-            line=dict(color=color, width=1.8),
-            connectgaps=False,
-            hovertemplate=f"{company}<br>%{{x}}  {feature}: %{{y}} (0=bad/1=normal/2=good)<extra></extra>",
-        ), row=fi + 1, col=1)
+        fig.add_trace(
+            go.Scatter(
+                x=fdf["week_start"],
+                y=fdf["score"],
+                name=company,
+                legendgroup=company,
+                showlegend=(fi == 0),
+                mode="lines",
+                line=dict(color=color, width=1.8),
+                connectgaps=False,
+                hovertemplate=f"{company}<br>%{{x}}  {feature}: %{{y}} (0=bad/1=normal/2=good)<extra></extra>",
+            ),
+            row=fi + 1,
+            col=1,
+        )
 
 # ---------- x 軸ラベル（全行）----------
 months = pd.date_range(df["week_start"].min(), df["week_start"].max(), freq="MS")
 tick_vals = [int(m.timestamp() * 1000) for m in months]
 tick_text = [f"{m.strftime('%y')}-{m.month}" for m in months]
-fig.for_each_xaxis(lambda ax: ax.update(
-    showticklabels=True, matches=None, type="date",
-    tickvals=tick_vals, ticktext=tick_text, tickangle=0,
-    showgrid=True, gridcolor="#eeeeee",
-))
+fig.for_each_xaxis(
+    lambda ax: ax.update(
+        showticklabels=True,
+        matches=None,
+        type="date",
+        tickvals=tick_vals,
+        ticktext=tick_text,
+        tickangle=0,
+        showgrid=True,
+        gridcolor="#eeeeee",
+    )
+)
 fig.update_yaxes(showgrid=True, gridcolor="#eeeeee", title_text="件数")
 
 # サブタイトルを太字に
@@ -151,8 +175,11 @@ for ann in fig.layout.annotations:
     ann.text = f"<b>{ann.text}</b>"
 
 fig.update_layout(
-    title=dict(text="Work (施工管理) Fan / Proactive 顧客  機能別週次利用数",
-               font=dict(size=16), x=0.5),
+    title=dict(
+        text="Work (施工管理) Fan / Proactive 顧客  機能別週次利用数",
+        font=dict(size=16),
+        x=0.5,
+    ),
     hovermode="closest",
     plot_bgcolor="white",
     paper_bgcolor="white",
@@ -162,8 +189,11 @@ fig.update_layout(
     margin=dict(t=80, b=60, r=60, l=60),
     showlegend=False,
 )
-fig.update_yaxes(tickvals=[0, 1, 2], ticktext=["bad (0)", "normal (1)", "good (2)"],
-                 range=[-0.1, 2.2])
+fig.update_yaxes(
+    tickvals=[0, 1, 2],
+    ticktext=["bad (0)", "normal (1)", "good (2)"],
+    range=[-0.1, 2.2],
+)
 
 # ---------- HTML 出力 + 検索ウィジェット注入 ----------
 out_dir = Path(__file__).parent.parent / "output" / "html"

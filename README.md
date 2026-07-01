@@ -76,36 +76,6 @@ uv run pytest
 
 ---
 
----
-
-## 設定ファイル (config.yml)
-
-**すべての設定はここに集約している。** コードをいじらずパラメータを変更できるぞ。
-
-```yaml
-kpi:
-  tier:
-    rolling_months:        3   # fan/proactive 判定のローリング期間 (月)
-    weekly_window:        12   # 週次表示の対象週数
-    avg_months:           12   # 稼働日平均の参照月数
-    fan_feature_min:       2   # 単一プロダクト fan: normal+ 機能数の最小値
-    proactive_feature_min: 1   # 単一プロダクト proactive: 同上
-    xproduct_score_min:    1   # クロスプロダクト fan/proactive: 各プロダクトスコアの最小値
-    usage_freq_good:       5   # usage_freq good の閾値
-    usage_freq_normal:     3   # usage_freq normal の閾値
-
-redash:
-  base_url: "https://redash.careecon.jp"
-  data_sources:
-    db:   1   # careecon_db — companies マスタ
-    cas:  2   # careecon_cas — contracts, accounts
-    work: 7   # careecon_work — 施工管理・経営管理 利用履歴
-  saved_queries:
-    work_user_history: 914
-```
-
----
-
 ## BigQuery と Notion で SQL ファイルが分かれている理由
 
 `collections/` の下に `bigquery/` と `notion/` の 2 ディレクトリがある。同じ指標でも **表示ツールの要件が違う**ため、別ファイルで管理している。
@@ -138,22 +108,6 @@ DuckDB (正規化テーブルを計算・保存)
 | **何を保存** | 正規化テーブル (`feature_health` 等) | `collections/*.sql` の集計結果のみ |
 | **役割** | 計算エンジン＋ローカルキャッシュ | Looker Studio に食わせる置き場 |
 | **更新** | `kpi-update` のたびに全書き換え | Cloud Run 実行時に WRITE_TRUNCATE |
-
----
-
-## DuckDB 正規化テーブル一覧
-
-| テーブル | 内容 |
-|---------|------|
-| `customer_lifecycle` | 企業 × 月 × ライフサイクルステージ |
-| `feature_health` | 企業 × 機能 × 月 のヘルス (施工管理) |
-| `keiei_feature_health` | 同上 (経営管理) |
-| `work_monthly_company` | 企業 × 月 × diversity_tier + usage_freq (施工管理) |
-| `work_company_weekly` | 企業 × 週 × usage_freq + diversity_tier (施工管理) |
-| `keiei_monthly_company` | 同上 (経営管理) |
-| `keiei_company_weekly` | 同上 (経営管理) |
-| `cross_product_monthly_company` | 企業 × 月 × integration_tier + usage_freq (クロスプロダクト) |
-| `cross_product_company_weekly` | 企業 × 週 × usage_freq + integration_tier |
 
 ---
 

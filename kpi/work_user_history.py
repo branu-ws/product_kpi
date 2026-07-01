@@ -100,7 +100,8 @@ SELECT
   bp.id         AS source_id,
   NULL          AS user_id,
   CASE
-    WHEN MAX(CASE WHEN img.device_uuid IS NOT NULL AND img.device_uuid != '' THEN 1 ELSE 0 END) = 1 THEN 'app'
+    WHEN MAX(CASE WHEN img.device_uuid IS NOT NULL
+                       AND img.device_uuid != '' THEN 1 ELSE 0 END) = 1 THEN 'app'
     WHEN MAX(CASE WHEN img.id IS NOT NULL THEN 1 ELSE 0 END) = 1 THEN 'browser'
     ELSE NULL
   END           AS platform
@@ -164,7 +165,7 @@ def fetch_ai(client: httpx.Client) -> pd.DataFrame:
 
 
 def fetch_contents(client: httpx.Client) -> pd.DataFrame:
-    """contents テーブルから写真アップロード・フォルダ作成を company_uuid ベースで取得する。"""
+    """写真アップロード・フォルダ作成を contents テーブルから取得する。"""
     rows = redash.run_adhoc_query(client, REDASH.data_sources.work, _CONTENTS_SQL)
     return _to_df(rows)
 
@@ -212,9 +213,7 @@ WHERE r.project_id IS NOT NULL
 
 def fetch_report_attrs(client: httpx.Client) -> pd.DataFrame:
     """報告書ごとのAI生成フラグを取得する。ファネル分析の基礎テーブル用。"""
-    rows = redash.run_adhoc_query(
-        client, REDASH.data_sources.work, _REPORT_ATTRS_SQL
-    )
+    rows = redash.run_adhoc_query(client, REDASH.data_sources.work, _REPORT_ATTRS_SQL)
     df = pd.DataFrame(rows)
     df["has_ai"] = df["has_ai"].astype(bool)
     return df

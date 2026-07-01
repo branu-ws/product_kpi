@@ -11,8 +11,9 @@ plus/mini と onboarding は独立した軸なので MECE になっている。
 同一月に複数契約が重なる場合は plus を優先する。
 
 設計方針:
-  Plus ライフサイクルは SF をプライマリソース (sf_all_plus_customers / sf_customers) として構築する。
-  CAS (contracts) は「Plus 開始日」の算出と「過去月の在籍確認」にのみ使用する。
+  Plus ライフサイクルは SF をプライマリソース
+  (sf_all_plus_customers / sf_customers) として構築する。
+  CAS (contracts) は Plus 開始日の算出と過去月の在籍確認にのみ使用する。
   これにより CAS の登録遅れ・プラン変更タイムラグが顧客の存在判定に影響しない。
 """
 
@@ -142,19 +143,22 @@ def _build_sf_first(
             WHERE strftime(ps.plus_start_date, '%Y-%m') <= m.month
               AND m.month <= strftime(CURRENT_DATE, '%Y-%m')
               AND (
-                  -- SF で現在もアクティブ（CAS 状態に依らず）
+                  -- SF で現在もアクティブ(CAS 状態に依らず)
                   EXISTS (
                       SELECT 1 FROM sf_customers sc
                       WHERE sc.company_uuid = sfc.company_uuid
                   )
                   OR
-                  -- 過去月: CAS にその月をカバーする有効契約があった
-                  EXISTS (
-                      SELECT 1 FROM contracts con
-                      WHERE con.company_uuid = sfc.company_uuid
-                        AND strftime(con.start_date, '%Y-%m') <= m.month
-                        AND ({_CAS_ACTIVE_COND})
-                  )
+                  -- 過去月のみ: CAS に Plus 契約があった月を active とする
+                  -- 現在月は SF のみで判定(mini 契約による誤混入を防ぐ)
+                  (m.month < strftime(CURRENT_DATE, '%Y-%m')
+                   AND EXISTS (
+                       SELECT 1 FROM contracts con
+                       WHERE con.company_uuid = sfc.company_uuid
+                         AND con.plan_type = 'plus'
+                         AND strftime(con.start_date, '%Y-%m') <= m.month
+                         AND ({_CAS_ACTIVE_COND})
+                   ))
               )
         ),
 
@@ -212,7 +216,7 @@ def _build_sf_first(
 def _build_cas_first(
     conn: duckdb.DuckDBPyConnection,
     sf_table: str,
-    tables: set,
+    tables: set[str],
     keiei_months_union: str,
 ) -> pd.DataFrame:
     """Mini など CAS ファーストのライフサイクルを構築する (従来ロジック)。"""

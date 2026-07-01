@@ -1,6 +1,7 @@
 """Work Mini Fan / Proactive 顧客の機能別月次ヒートマップ。"""
 
 from pathlib import Path
+
 import kpi.db as db
 from kpi.config import FEATURE_THRESHOLDS
 from kpi.heatmap import build_heatmap
@@ -32,7 +33,18 @@ conn.close()
 build_heatmap(
     df=df,
     thresholds=FEATURE_THRESHOLDS,
-    feature_order=["工程作成", "掲示板", "報告書", "出面", "日報", "出来高", "AIアシスタント", "写真アップロード", "フォルダ作成"],
+    feature_order=[
+        "工程作成",
+        "掲示板",
+        "報告書",
+        "出面",
+        "日報",
+        "出来高",
+        "AIアシスタント",
+        "写真アップロード",
+        "フォルダ作成",
+    ],
     title="Work Mini Fan / Proactive 顧客  機能別月次ヒートマップ",
-    out_path=Path(__file__).parent.parent / "output/html/work_minicompany_feature_heatmap.html",
+    out_path=Path(__file__).parent.parent
+    / "output/html/work_minicompany_feature_heatmap.html",
 )

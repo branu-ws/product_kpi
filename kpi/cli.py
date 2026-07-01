@@ -43,9 +43,7 @@ _BQ_DIR = _COLLECTIONS_DIR / "bigquery"  # bigquery/{dataset}/*.sql → BigQuery
 _NOTION_DIR = _COLLECTIONS_DIR / "notion"  # notion/*.sql → kpi-sync
 
 
-def _fetch_raw(
-    client: httpx.Client, bar_fmt: str
-) -> dict[str, pd.DataFrame]:
+def _fetch_raw(client: httpx.Client, bar_fmt: str) -> dict[str, pd.DataFrame]:
     """Redash + SF から全 raw データを取得する。companies の SF 社名補完を含む。"""
     fetch_tasks: list[tuple[str, Any]] = [
         ("work_user_history        ", lambda: work_user_history.fetch(client)),
@@ -65,8 +63,14 @@ def _fetch_raw(
         ("mini_sf_customers        ", lambda: sf_customers.fetch_mini(client)),
         ("ai_user_history          ", lambda: work_user_history.fetch_ai(client)),
         ("contents_user_history    ", lambda: work_user_history.fetch_contents(client)),
-        ("daily_report_photo       ", lambda: work_user_history.fetch_daily_report_attrs(client)),
-        ("report_attrs             ", lambda: work_user_history.fetch_report_attrs(client)),
+        (
+            "daily_report_photo       ",
+            lambda: work_user_history.fetch_daily_report_attrs(client),
+        ),
+        (
+            "report_attrs             ",
+            lambda: work_user_history.fetch_report_attrs(client),
+        ),
     ]
     fetched: dict[str, pd.DataFrame] = {}
     with tqdm(fetch_tasks, bar_format=bar_fmt) as pbar:
@@ -76,10 +80,9 @@ def _fetch_raw(
 
     # DS1 にない会社 (keiei-only・解約済み含む) の社名を SF 名で補完
     # sf_all_plus_customers で解約済み顧客の社名もカバーする
-    sf_names = (
-        fetched["sf_all_plus_customers"][["company_uuid", "sf_company_name"]]
-        .rename(columns={"sf_company_name": "company_name"})
-    )
+    sf_names = fetched["sf_all_plus_customers"][
+        ["company_uuid", "sf_company_name"]
+    ].rename(columns={"sf_company_name": "company_name"})
     fetched["companies"] = (
         pd.concat([fetched["companies"], sf_names], ignore_index=True)
         .drop_duplicates(subset="company_uuid", keep="first")
@@ -131,7 +134,7 @@ def _build_kpi(
         conn.register("mini_feature_health", mini_health_df)
         pbar.update(1)
 
-    with tqdm(total=7, bar_format=bar_fmt) as pbar:
+    with tqdm(total=6, bar_format=bar_fmt) as pbar:
         pbar.set_description("KPI計算  cross_product           ")
         cp_monthly_df, cp_weekly_df = cross_product.build(conn)
         built["cross_product_monthly_company"] = cp_monthly_df
@@ -170,17 +173,10 @@ def _build_kpi(
         pbar.update(1)
 
         pbar.set_description("KPI計算  keiei_company_loyalty   ")
-        built["keiei_company_loyalty"] = keiei_loyalty_df = (
-            company_loyalty.build_keiei(conn)
-        )
-        conn.register("keiei_company_loyalty", keiei_loyalty_df)
-        pbar.update(1)
-
-        pbar.set_description("KPI計算  mini_company_loyalty    ")
-        built["mini_company_loyalty"] = mini_loyalty_df = company_loyalty.build_mini(
+        built["keiei_company_loyalty"] = keiei_loyalty_df = company_loyalty.build_keiei(
             conn
         )
-        conn.register("mini_company_loyalty", mini_loyalty_df)
+        conn.register("keiei_company_loyalty", keiei_loyalty_df)
         pbar.update(1)
 
     views: dict[str, dict[str, Any]] = defaultdict(dict)

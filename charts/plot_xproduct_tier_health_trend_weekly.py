@@ -40,29 +40,29 @@ ORDER BY 1, 2, 3
 conn.close()
 
 # ---------- 表示設定 ----------
-TIER_ORDER   = ["fan", "proactive", "passive", "onboarding"]
+TIER_ORDER = ["fan", "proactive", "passive", "onboarding"]
 HEALTH_ORDER = ["bad", "normal", "good"]
 
 TIER_LABEL = {
-    "fan":        "ファン",
-    "proactive":  "プロアクティブ",
-    "passive":    "パッシブ",
+    "fan": "ファン",
+    "proactive": "プロアクティブ",
+    "passive": "パッシブ",
     "onboarding": "オンボーディング",
 }
 
 # Tier Trend (#1a6bb5, #2eaa6e, #f0a500, #d94f3d) を少し暗くしたもの → サブプロット背景
 TIER_BG_COLOR = {
-    "fan":        "rgba( 13,  74, 138, 0.18)",
-    "proactive":  "rgba( 26, 107,  62, 0.18)",
-    "passive":    "rgba(168, 112,   0, 0.18)",
+    "fan": "rgba( 13,  74, 138, 0.18)",
+    "proactive": "rgba( 26, 107,  62, 0.18)",
+    "passive": "rgba(168, 112,   0, 0.18)",
     "onboarding": "rgba(155,  32,  32, 0.18)",
 }
 
 # 黒系グラデーション: good=最も濃い, bad=最も薄い
 HEALTH_COLOR = {
-    "good":   "#1a1a1a",
+    "good": "#1a1a1a",
     "normal": "#686868",
-    "bad":    "#c0c0c0",
+    "bad": "#c0c0c0",
 }
 
 # ---------- Figure ----------
@@ -108,9 +108,12 @@ for ann in fig.layout.annotations:
 for tier, domain in tier_to_domain.items():
     fig.add_shape(
         type="rect",
-        xref="paper", yref="paper",
-        x0=0, x1=1,
-        y0=domain[0], y1=domain[1],
+        xref="paper",
+        yref="paper",
+        x0=0,
+        x1=1,
+        y0=domain[0],
+        y1=domain[1],
         fillcolor=TIER_BG_COLOR[tier],
         line_width=0,
         layer="below",
@@ -120,13 +123,14 @@ fig.update_traces(hovertemplate="%{y}社<extra></extra>")
 
 fig.update_layout(
     hovermode="x unified",
-    plot_bgcolor="rgba(0,0,0,0)",   # 透明 → shape の背景色を表示
+    plot_bgcolor="rgba(0,0,0,0)",  # 透明 → shape の背景色を表示
     paper_bgcolor="#ffffff",
     font=dict(family="Noto Sans JP, sans-serif", size=12, color="#333333"),
     margin=dict(t=100, b=60, r=180),
     legend=dict(
         title="Health Score",
-        x=1.01, y=1,
+        x=1.01,
+        y=1,
         bgcolor="rgba(255,255,255,0.9)",
         bordercolor="#dddddd",
         borderwidth=1,
@@ -138,16 +142,18 @@ tick_vals = [int(m.timestamp() * 1000) for m in months]
 tick_text = [f"{m.strftime('%y')}-{m.month}" for m in months]
 
 # 全 facet 行に x 軸ラベルを表示 (matches=None で各行独立 → showticklabels が効く)
-fig.for_each_xaxis(lambda ax: ax.update(
-    showticklabels=True,
-    matches=None,
-    tickvals=tick_vals,
-    ticktext=tick_text,
-    tickangle=0,
-    showgrid=True,
-    gridcolor="rgba(0,0,0,0.07)",
-    type="date",
-))
+fig.for_each_xaxis(
+    lambda ax: ax.update(
+        showticklabels=True,
+        matches=None,
+        tickvals=tick_vals,
+        ticktext=tick_text,
+        tickangle=0,
+        showgrid=True,
+        gridcolor="rgba(0,0,0,0.07)",
+        type="date",
+    )
+)
 fig.update_yaxes(showgrid=True, gridcolor="rgba(0,0,0,0.07)", matches=None)
 
 # ---------- 出力 ----------

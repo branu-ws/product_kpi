@@ -1,0 +1,40 @@
+<div id="company-selector" style="
+  position:fixed;bottom:24px;right:24px;z-index:9999;
+  background:rgba(255,255,255,0.96);
+  border:1px solid rgba(0,0,0,0.08);border-radius:14px;
+  padding:14px 16px;
+  box-shadow:0 8px 32px rgba(0,0,0,0.12),0 2px 8px rgba(0,0,0,0.06);
+  width:220px;font-family:'Inter','Noto Sans JP',sans-serif;font-size:13px;
+  backdrop-filter:blur(8px);">
+  <div style="font-weight:600;color:#1a2035;margin-bottom:8px;font-size:12px;letter-spacing:0.04em;">🔍 顧客を選択</div>
+  <input type="text" id="cs-search" placeholder="会社名を検索…"
+    style="width:100%;padding:7px 10px;box-sizing:border-box;
+           border:1px solid rgba(0,0,0,0.12);border-radius:8px;
+           font-size:12px;margin-bottom:6px;outline:none;
+           font-family:'Inter','Noto Sans JP',sans-serif;
+           background:#f8fafc;color:#1a2035;">
+  <select id="cs-list" size="7"
+    style="width:100%;border:1px solid rgba(0,0,0,0.12);border-radius:8px;
+           font-size:11px;padding:4px;background:#f8fafc;color:#1a2035;
+           font-family:'Inter','Noto Sans JP',sans-serif;">
+    ${options_html}
+  </select>
+</div>
+<script>
+(function(){
+  const companies=${companies_json};
+  const scrollPos=${scroll_json};
+  const search=document.getElementById('cs-search');
+  const list=document.getElementById('cs-list');
+  search.addEventListener('input',function(){
+    const q=this.value.toLowerCase();
+    Array.from(list.options).forEach(opt=>{opt.hidden=!opt.text.toLowerCase().includes(q);});
+  });
+  list.addEventListener('change',function(){
+    const ci=parseInt(this.value);
+    if(ci<0)return;
+    const pos=scrollPos[companies[ci]];
+    if(pos!==undefined)window.scrollTo({top:pos,behavior:'smooth'});
+  });
+})();
+</script>
