@@ -15,6 +15,7 @@
 import logging
 import os
 from pathlib import Path
+from typing import Any
 
 import duckdb
 import pandas as pd
@@ -44,6 +45,7 @@ def save_views(views: dict[str, dict[str, pd.DataFrame]]) -> None:
         return
     for dataset, tables in views.items():
         _save_bigquery(dataset, **tables)
+    _cleanup_orphaned_bq(views)
 
 
 def _save_duckdb(**tables: pd.DataFrame) -> None:
@@ -81,6 +83,23 @@ def _save_bigquery(dataset: str, **tables: pd.DataFrame) -> None:
         job = client.load_table_from_dataframe(frame, table_ref, job_config=job_config)
         job.result()
         log.info("BigQuery 保存: %s (%s rows)", table_ref, f"{len(frame):,}")
+
+
+def _cleanup_orphaned_bq(views: dict[str, dict[str, pd.DataFrame]]) -> None:
+    """collections/bigquery/ に .sql がない BQ テーブルを削除する。"""
+    from google.cloud import bigquery
+
+    project = os.environ["GCP_PROJECT_ID"]
+    client: Any = bigquery.Client(project=project)
+
+    for dataset, registered_tables in views.items():
+        try:
+            existing = {t.table_id for t in client.list_tables(f"{project}.{dataset}")}
+        except Exception:
+            continue
+        for table in existing - registered_tables.keys():
+            client.delete_table(f"{project}.{dataset}.{table}")
+            log.info("BigQuery 削除 (未登録): %s.%s.%s", project, dataset, table)
 
 
 def load() -> duckdb.DuckDBPyConnection:
