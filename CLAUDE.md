@@ -283,6 +283,14 @@ DuckDB → Plotly HTML → GCS → Notion embed の流れ。
 
 グラフスクリプトは `charts/plot_*.py` → `output/html/` に HTML 出力。GCS 上書きで Notion 側は自動反映（embed ブロックを削除→再作成するとリサイズがリセットされるので注意）。
 
+### ⚠️ charts/ の git 管理ルール
+
+**`config.yml` の `charts:` に登録されたスクリプトだけを git 管理する。**
+
+- 新しいチャートを追加するときは、スクリプト作成と同時に `config.yml` へ登録し、一緒に commit すること
+- 探索・調査用の一時スクリプトは `charts/scratch/` に置く（gitignore 済み、GCS にも残さない）
+- `charts/` 直下に `config.yml` 未登録のスクリプトを commit してはいけない
+
 ### 共有ヒートマップモジュール (`kpi/heatmap.py`)
 
 顧客別機能ヒートマップの共通ロジック。薄いラッパーを `charts/plot_*_heatmap.py` に置く構成。

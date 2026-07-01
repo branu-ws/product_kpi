@@ -232,6 +232,9 @@ cache.duckdb
 output.csv
 output/
 
+# 探索・調査用チャート (config.yml 未登録) → charts/scratch/ に置くこと
+charts/scratch/*.py
+
 # PyPI configuration file
 .pypirc
 
