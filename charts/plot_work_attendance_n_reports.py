@@ -69,9 +69,9 @@ df["month_dt"] = pd.to_datetime(df["month"] + "-01")
 SEGMENTS = ["Plus", "Mini"]
 FEATURES = ["出面", "日報", "報告書", "AIアシスタント"]
 COLORS = {
-    "出面":           "#1f77b4",
-    "日報":           "#9467bd",
-    "報告書":         "#8c564b",
+    "出面": "#1f77b4",
+    "日報": "#9467bd",
+    "報告書": "#8c564b",
     "AIアシスタント": "#d62728",
 }
 METRICS = [("companies", "顧客数 (社)"), ("events", "作成数 (件)")]

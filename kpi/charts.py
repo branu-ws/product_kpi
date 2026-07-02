@@ -25,7 +25,7 @@ def generate_and_upload(charts: list[ChartEntry], gcp: GcpSettings) -> None:
         log.warning("gcp.charts_bucket が未設定のためグラフ生成をスキップ")
         return
 
-    from google.cloud import storage  # type: ignore[attr-defined]
+    from google.cloud import storage
 
     client: Any = storage.Client(project=gcp.project_id)
     bucket: Any = client.bucket(gcp.charts_bucket)

@@ -1,9 +1,7 @@
 """CLI エントリーポイント。pyproject.toml の [project.scripts] から呼ばれる。"""
 
 import logging
-import os
 import sys
-from collections import defaultdict
 from pathlib import Path
 from typing import Any
 
@@ -39,7 +37,6 @@ log = logging.getLogger(__name__)
 
 _OUTPUT_DIR = Path(__file__).parent.parent / "output" / "csv"
 _COLLECTIONS_DIR = Path(__file__).parent.parent / "collections"
-_BQ_DIR = _COLLECTIONS_DIR / "bigquery"  # bigquery/{dataset}/*.sql → BigQuery
 _NOTION_DIR = _COLLECTIONS_DIR / "notion"  # notion/*.sql → kpi-sync
 
 
@@ -92,10 +89,8 @@ def _fetch_raw(client: httpx.Client, bar_fmt: str) -> dict[str, pd.DataFrame]:
     return fetched
 
 
-def _build_kpi(
-    raw: dict[str, pd.DataFrame], bar_fmt: str
-) -> tuple[dict[str, pd.DataFrame], dict[str, dict[str, Any]]]:
-    """raw DataFrames から全 KPI テーブルと BigQuery ビューを計算する。"""
+def _build_kpi(raw: dict[str, pd.DataFrame], bar_fmt: str) -> dict[str, pd.DataFrame]:
+    """raw DataFrames から全 KPI テーブルを計算する。"""
     conn = duckdb.connect()
     for name, df in raw.items():
         conn.register(name, df)
@@ -179,43 +174,21 @@ def _build_kpi(
         conn.register("keiei_company_loyalty", keiei_loyalty_df)
         pbar.update(1)
 
-    views: dict[str, dict[str, Any]] = defaultdict(dict)
-    sql_files = sorted(_BQ_DIR.rglob("*.sql"))
-    with tqdm(sql_files, bar_format=bar_fmt) as pbar:
-        for sql_file in pbar:
-            rel = sql_file.relative_to(_BQ_DIR)
-            parts = rel.with_suffix("").parts
-            if len(parts) < 2:
-                log.warning("skip %s: place under bigquery/{dataset}/", rel)
-                continue
-            dataset = parts[0]
-            table_name = "_".join(parts[1:])
-            pbar.set_description(f"SQL実行  {dataset}.{table_name:<40}")
-            try:
-                df = conn.sql(sql_file.read_text()).df()
-                views[dataset][table_name] = df
-            except Exception as e:
-                log.warning("警告: %s スキップ (%s)", rel, e)
-
     conn.close()
-    return built, dict(views)
+    return built
 
 
 def update_duckdb() -> None:
-    """Redash からデータを取得して DuckDB キャッシュを更新し、
-    collections/*.sql の集計結果を BigQuery に保存する。
-    """
+    """Redash からデータを取得して DuckDB キャッシュを更新し、チャートを再生成する。"""
     load_dotenv()
     bar_fmt = "{l_bar}{bar}| {elapsed}"
 
     with httpx.Client() as client:
         raw = _fetch_raw(client, bar_fmt)
 
-    built, views = _build_kpi(raw, bar_fmt)
+    built = _build_kpi(raw, bar_fmt)
 
     db.save(**raw, **built)
-    if views:
-        db.save_views(views)
 
     chart_list = kpi_config.load_notion_charts()
     if chart_list:
@@ -223,15 +196,6 @@ def update_duckdb() -> None:
         charts.generate_and_upload(chart_list, gcp)
 
     log.info("完了")
-
-
-def bq_update() -> None:
-    """kpi-update + BigQuery 書き込み。GCP 設定は config.yml から読む。"""
-    gcp = kpi_config.load_gcp()
-    os.environ["USE_BIGQUERY"] = "1"
-    os.environ.setdefault("GCP_PROJECT_ID", gcp.project_id)
-    os.environ.setdefault("BQ_DATASET", gcp.dataset)
-    update_duckdb()
 
 
 def sync_notion() -> None:

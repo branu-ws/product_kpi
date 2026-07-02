@@ -54,7 +54,7 @@ SEGMENTS = ["Plus", "Mini"]
 FEATURES = ["写真アップロード", "フォルダ作成"]
 COLORS = {
     "写真アップロード": "#2ca02c",
-    "フォルダ作成":     "#ff7f0e",
+    "フォルダ作成": "#ff7f0e",
 }
 METRICS = [("companies", "顧客数 (社)"), ("events", "作成数 (件)")]
 
