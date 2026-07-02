@@ -109,7 +109,6 @@ for r, segment in enumerate(SEGMENTS, start=1):
 fig.update_layout(
     title="出面・日報・報告書・AI トレンド — Plus / Mini × 顧客数 / 作成数",
     height=650,
-    width=1000,
     legend=dict(title="", orientation="h", y=-0.12),
     hovermode="x unified",
     template="plotly_white",

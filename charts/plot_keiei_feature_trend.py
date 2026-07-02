@@ -77,7 +77,6 @@ for c, (metric, _) in enumerate(METRICS, start=1):
 fig.update_layout(
     title="経営管理 機能別月次トレンド — Plus 顧客 × 顧客数 / 作成数",
     height=450,
-    width=1050,
     legend=dict(title="", orientation="h", y=-0.22),
     hovermode="x unified",
     template="plotly_white",

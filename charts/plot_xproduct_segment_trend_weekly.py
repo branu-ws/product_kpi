@@ -128,7 +128,6 @@ fig.update_layout(
     font=dict(family="Noto Sans JP, sans-serif", size=12),
     margin=dict(t=100, b=40),
     height=680,
-    width=1300,
 )
 
 # ---------- 出力 ----------

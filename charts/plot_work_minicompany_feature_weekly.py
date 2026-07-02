@@ -191,7 +191,6 @@ fig.update_layout(
     paper_bgcolor="white",
     font=dict(family="Noto Sans JP, sans-serif", size=12),
     height=1400,
-    width=1200,
     margin=dict(t=80, b=60, r=60, l=60),
     showlegend=False,
 )

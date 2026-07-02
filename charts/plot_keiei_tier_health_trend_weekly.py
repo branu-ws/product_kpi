@@ -76,7 +76,6 @@ fig = px.area(
     labels={"company_count": "社数", "week_start": "週", "usage_freq": "Health Score"},
     title="経営管理 顧客 Tier × Health Score 週次推移",
     height=900,
-    width=1200,
     facet_row_spacing=0.02,
 )
 
