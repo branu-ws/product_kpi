@@ -52,7 +52,6 @@ notification: #Error 発生時通知メール
 
 gcp:
   project_id: "product-department-496703"
-  bq_dataset: "kpi"
   region: "asia-northeast1"
   job_name: "kpi-pipeline-job"
   charts_bucket: "product-kpi-charts-branu"

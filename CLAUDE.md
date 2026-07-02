@@ -23,6 +23,16 @@ uv run kpi-sync            # DuckDB → Notion 同期
 
 DS11 は SOQL で直接クエリできる（`redash.run_adhoc_query(client, REDASH.data_sources.sf, soql)`）。
 
+### ⚠️ スキーマ調査は原則 Redash/バックエンドリポジトリに行かない
+
+DS1/DS2/DS7/keiei_plus_production の既知テーブル・カラム・enum値は `schema/mysql_notes.md`
+にカタログ化済み。新しい機能を追加する前に**まずここを見る**。Salesforce は `schema/salesforce.md`。
+
+**未知のテーブル・カラムが必要になった場合のみ** Redash のスキーマブラウザで探索する
+（バックエンドリポジトリのコードは読みに行かない — Redash 経由で十分足りる）。
+探索して分かったことは、その場で `schema/mysql_notes.md` に追記してから実装に進むこと。
+「動くSQLを書いて終わり」にすると次回また同じ探索コストがかかる。
+
 ### ⚠️ 重要: company_id の番号体系が DB ごとに異なる
 
 - DS1 `companies.id` と CAS `contracts.company_id` は **別の連番**（直接 JOIN 不可）
@@ -45,9 +55,10 @@ FROM accounts WHERE company_id IN (CAS_company_ids)
 ### イベントログ (Redash fetch)
 
 ```
-work_user_history         : 機能別利用イベント
-                            (pid, content, content_date, source_id, user_id)
+work_user_history         : 機能別利用イベント (施工管理)
+                            (pid, content, content_date, source_id, user_id, platform)
                             ※ user_id は日報・出面・報告書のみ非 NULL
+                            ※ platform (app/browser) は掲示板のみ content_resources 経由で取得 (約43%カバレッジ、他機能は NULL)
 work_process_id_generator : pid → company_uuid のブリッジ
 companies                 : company_uuid, company_name  ← DS7 (住所なし)
 contracts                 : company_uuid, plan_type, status, start_date, end_date
@@ -55,8 +66,11 @@ users                     : user_id, user_uuid, user_name, company_uuid
 sf_customers              : company_uuid のホワイトリスト (SF Plus 確認済み) [毎回自動更新]
 ai_user_history           : AIアシスタント利用イベント (company_uuid, content, content_date)
                             ← ai_logs.cid を直接使用 (pid なし)
-contents_user_history     : 写真アップロード・フォルダ作成イベント (company_uuid, content, content_date)
+contents_user_history     : 写真アップロード・フォルダ作成イベント (company_uuid, content, content_date, platform)
                             ← contents テーブルから company_uuid 変換済み
+keiei_user_history        : 機能別利用イベント (経営管理)
+                            (company_uuid, content, content_date)
+                            ← keiei_plus_production DB (Redash) から company_uuid を直接取得 (pid なし)
 ```
 
 ### イベント属性テーブル (ファネル分析の基礎DB)
@@ -83,10 +97,20 @@ report_attrs              : 報告書ごとのAI生成フラグ
 ### 派生テーブル (KPI 計算結果)
 
 ```
-customer_lifecycle        : company_uuid × usage_month × lifecycle_stage
-feature_health            : company_uuid × feature × usage_month × health
-company_loyalty           : company_uuid × usage_month × loyalty_tier
+customer_lifecycle          : company_uuid × usage_month × lifecycle_stage
+feature_health               : company_uuid × feature × usage_month × health           (施工管理)
+work_monthly_company         : company_uuid × usage_month の機能別月次集計              (施工管理、single_product の元)
+work_company_weekly          : company_uuid × week の機能別週次集計                     (施工管理、tier health chart の元)
+company_loyalty              : company_uuid × usage_month × loyalty_tier                (施工管理)
+keiei_feature_health          : feature_health の経営管理版
+keiei_monthly_company         : work_monthly_company の経営管理版
+keiei_company_weekly          : work_company_weekly の経営管理版
+keiei_company_loyalty         : company_loyalty の経営管理版
+cross_product_monthly_company : company_uuid × usage_month の work/keiei 横断集計 (integration_tier の元)
+cross_product_company_weekly  : company_uuid × week の work/keiei 横断週次集計
 ```
+
+Mini 版 (`mini_customer_lifecycle` 等) は後述「Mini 分析」節を参照。
 
 ### ⚠️ company_uuid ベーステーブルの UNION パターン
 
@@ -208,7 +232,6 @@ ACTIVE_PLAN_TYPES: list[str] = ["plus"]
 ## 未着手・次のステップ
 
 ### 短期
-- [ ] `kpi-update` を実行して新機能（AIアシスタント・写真アップロード・フォルダ作成）を DuckDB に反映し、GCS チャートを再生成・アップロード
 - [ ] `工程作成` の指標を「新規作成数」→「進捗更新数 (progress_updated_on)」に切り替え
 - [ ] SF の CAREECON_CID__c 未設定 130社への入力依頼 (CS/実装担当) → 補填精度の向上
 
@@ -216,7 +239,10 @@ ACTIVE_PLAN_TYPES: list[str] = ["plus"]
 - [ ] **ファネル分析**: `daily_report_photo` + `report_attrs` で「日報→写真付き→AI使用」のファネルを可視化（基礎DB構築済み）
 - [ ] **エース級個人の特定**: `work_user_history.user_id` × `users` テーブルで個人別集計
 - [ ] `ACTIVE_PLAN_TYPES` に `"mini"` を追加して mini 分析を開始
-- [ ] 経営企画プロダクト (DS? 未確認) の指標化
+
+### 完了済み (参考)
+- [x] AIアシスタント・写真アップロード・フォルダ作成の DuckDB 反映・チャート化
+- [x] 経営管理プロダクト (keiei) の指標化 (`kpi/keiei_user_history.py`、`keiei_*` テーブル群、`charts/plot_keiei_*.py`)
 
 ---
 
