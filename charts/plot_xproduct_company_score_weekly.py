@@ -133,7 +133,7 @@ out_dir = Path(__file__).parent.parent / "output" / "html"
 out_dir.mkdir(parents=True, exist_ok=True)
 out_path = out_dir / "xproduct_company_score_weekly.html"
 
-html = fig.to_html(include_plotlyjs="cdn", full_html=True)
+html = fig.to_html(include_plotlyjs="cdn", full_html=True, config={"responsive": True})
 
 options_html = "\n".join(
     f'<option value="{i}">{c}</option>' for i, c in enumerate(companies)

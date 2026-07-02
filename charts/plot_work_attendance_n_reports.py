@@ -118,5 +118,5 @@ fig.update_layout(
 fig.update_xaxes(dtick="M3", tickformat="%y-%m")
 
 out = "output/html/work_attendance_n_reports.html"
-fig.write_html(out, include_plotlyjs="cdn")
+fig.write_html(out, include_plotlyjs="cdn", config={"responsive": True})
 print(f"Written: {out}")

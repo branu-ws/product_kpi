@@ -86,5 +86,5 @@ fig.update_layout(
 fig.update_xaxes(dtick="M3", tickformat="%y-%m")
 
 out = "output/html/keiei_feature_trend.html"
-fig.write_html(out, include_plotlyjs="cdn")
+fig.write_html(out, include_plotlyjs="cdn", config={"responsive": True})
 print(f"Written: {out}")

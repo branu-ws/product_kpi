@@ -136,5 +136,5 @@ out_dir = Path(__file__).parent.parent / "output" / "html"
 out_dir.mkdir(parents=True, exist_ok=True)
 out_path = out_dir / "xproduct_segment_trend_weekly.html"
 
-fig.write_html(str(out_path), include_plotlyjs="cdn")
+fig.write_html(str(out_path), include_plotlyjs="cdn", config={"responsive": True})
 print(f"出力: {out_path}")
