@@ -5,7 +5,7 @@
 Redash API からデータを取得し DuckDB にキャッシュ、顧客ロイヤリティ・機能ヘルスを月次集計して CSV 出力するパイプライン。
 
 ```
-uv run kpi-update          # Redash + SF からデータ取得・DuckDB 再構築・BigQuery 保存
+uv run kpi-update          # Redash + SF からデータ取得・DuckDB 再構築・チャート再生成
 uv run kpi-export collections/*.sql  # SQL → CSV 出力
 uv run kpi-sync            # DuckDB → Notion 同期
 ```

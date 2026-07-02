@@ -44,7 +44,7 @@ redash:
     work_user_history: 914   # Redash 保存クエリ (施工管理利用履歴)
 
 schedule:
-  cron: "0 2 * * 1"    # 毎週月曜 02:00 JST BigQuery/Notion更新
+  cron: "0 2 * * 1"    # 毎週月曜 02:00 JST Notion更新
 
 notification: #Error 発生時通知メール
   email:

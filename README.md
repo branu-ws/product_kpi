@@ -2,7 +2,7 @@
 
 ご安全に！！！！
 
-Redash からデータを引き抜き、DuckDB にキャッシュ、顧客ティアと機能ヘルスを月次集計して BigQuery・Notion に自動展開するパイプラインだ。
+Redash からデータを引き抜き、DuckDB にキャッシュ、顧客ティアと機能ヘルスを月次集計して Notion に自動展開するパイプラインだ。
 最前線の意思決定を支える重要任務と心得てくれ！
 
 ## 作戦全体図
@@ -13,14 +13,10 @@ Cloud Scheduler (毎週月曜 2am JST) ← 定期実行
         ▼
 Cloud Run Job (kpi-pipeline-job)
         │
-        ├─► BigQuery (kpi dataset) ─► Looker Studio
-        │
-        └─► Notion API
+        └─► Notion API (DB 同期 + チャート embed)
 ```
 
 出力はこのリポジトリをいじることで調整可能だ。
-調整した後の反映方法は下に記述している。
-テスト用にローカル稼働も可能だ。BigQuery の代わりに DuckDB を使っているぞ。
 ローカル開発は `uv run python` で動く。`.env` に `REDASH_API_KEY` と `NOTION_API_KEY` を登録するだけだ！
 
 ---
@@ -61,11 +57,8 @@ cp .env.example .env
 ## ローカル実行
 
 ```bash
-# ステップ1: Redash からデータを引き抜いて DuckDB に弾薬充填する（BigQuery なし・高速）
+# ステップ1: Redash からデータを引き抜いて DuckDB に弾薬充填する
 uv run kpi-update
-
-# ステップ1b: DuckDB + BigQuery に同時書き込む（GCP_PROJECT_ID は config.yml から自動読込）
-uv run kpi-bq-update
 
 # ステップ2: Notion へ速報を送れ
 uv run kpi-sync
@@ -76,38 +69,17 @@ uv run pytest
 
 ---
 
-## BigQuery と Notion で SQL ファイルが分かれている理由
-
-`collections/` の下に `bigquery/` と `notion/` の 2 ディレクトリがある。同じ指標でも **表示ツールの要件が違う**ため、別ファイルで管理している。
-
-| | BigQuery (`collections/bigquery/`) | Notion (`collections/notion/`) |
-|---|---|---|
-| **形式** | 縦持ち (tidy format) | 横持ち (月 + 週がカラム) |
-| **理由** | Looker Studio がピボット・フィルタを自在にかけられる | Notion のテーブルはそのまま表示されるので読みやすい横持ちが最適 |
-| **time_col** | `DATE` 型 | `YYYY-MM` or `YYYY-MM-Wn` 文字列 |
-
----
-
-## DuckDB と BigQuery の使い分け
+## データフロー
 
 ```
-Redash API
-    │
-    ▼
-DuckDB (正規化テーブルを計算・保存)
-    │
-    ├─► cache.duckdb  ← ローカル開発・Notion 同期用
-    │
-    └─► collections/**/*.sql を実行
-            │
-            └─► BigQuery (集計済みテーブルのみ) ← Looker Studio 用
+Redash API / Salesforce
+        │
+        ▼
+DuckDB (正規化テーブルを計算・保存) ← cache.duckdb
+        │
+        ├─► Notion DB (kpi-sync)
+        └─► Plotly HTML → GCS → Notion embed (kpi-update)
 ```
-
-| | DuckDB | BigQuery |
-|---|---|---|
-| **何を保存** | 正規化テーブル (`feature_health` 等) | `collections/*.sql` の集計結果のみ |
-| **役割** | 計算エンジン＋ローカルキャッシュ | Looker Studio に食わせる置き場 |
-| **更新** | `kpi-update` のたびに全書き換え | Cloud Run 実行時に WRITE_TRUNCATE |
 
 ---
 
@@ -123,33 +95,10 @@ DuckDB (正規化テーブルを計算・保存)
 
 ---
 
-## BigQuery への書き込み方法は 3 通りある
+## デプロイ手順
 
 > ⚠️ **コードや SQL を変えたら必ず `docker_deploy.sh` を実行せよ！**
 > Cloud Run が使うのはイメージ内のコードだ。ローカルの変更はデプロイしない限り反映されないぞ！
-
-### ① ローカルから直接 BigQuery に書き込む
-
-```bash
-uv run kpi-bq-update
-```
-
-GCP プロジェクト ID は `config.yml` の `gcp.project_id` から自動で読み込まれる。
-
-### ② Cloud Run を手動でトリガーして実行
-
-```bash
-gcloud run jobs execute kpi-pipeline-job \
-  --region=asia-northeast1 --wait
-```
-
-### ③ Cloud Scheduler による自動実行を待つ
-
-何もしなくても **毎週月曜 2:00 JST** に自動実行される。
-
----
-
-## デプロイ手順
 
 ### 初回セットアップ手順 (この順番で実行せよ！)
 
@@ -165,7 +114,7 @@ bash auto/setup.bash
 bash auto/docker_deploy.sh
 ```
 
-**ステップ3: Cloud Run Job・BigQuery・シークレットをまとめてセットアップ**
+**ステップ3: Cloud Run Job・シークレットをまとめてセットアップ**
 
 ```bash
 bash auto/setup_cloudrun.sh

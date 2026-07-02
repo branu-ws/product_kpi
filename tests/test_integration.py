@@ -1,6 +1,6 @@
 """全 KPI モジュールの E2E インテグレーションテスト。
 
-外部サービス (Redash / BigQuery / Notion) には接触せず、合成データで
+外部サービス (Redash / Notion) には接触せず、合成データで
   customer_lifecycle → feature_health → single_product / cross_product
 のパイプライン全体が連結して動作することを確認する。
 """
